@@ -57,12 +57,34 @@
     </div>
 
     <script>
-        // 💡 1. MQTTブローカーの設定（テスト用パブリックブローカーのWebSocketポートを使用）
-        const BROKER_URL = "ws://://hivemq.com";
-        
-        // 💡 2. トピック名の設定（展示会用に競合を避ける名前空間を推奨）
-        const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; // ESP32からのデータ受信用
-        const TOPIC_COMMAND   = "esp32_01/industrial/command";   // LEDの操作シグナル送信用
+
+
+// =============================================================================
+// 💡 HiveMQ Cloudの設定に書き換え
+// =============================================================================
+// const CLUSTER_URL = "xxxxxxxx.s1.eu.hivemq.cloud"; // ⚠️ あなたのCluster URL（末尾のポートや/mqttは含めない）
+// const MQTT_USER   = "あなたのUsername";
+// const MQTT_PASS   = "あなたのPassword";
+
+const CLUSTER_URL = "71e8ee3c3db84e0fbc36f7a3c23a442c.s1.eu.hivemq.cloud";
+const MQTT_USER   = "ESP32_User";
+const MQTT_PASS   = "esp32ishappy01";
+
+// HiveMQ Cloud専用のセキュアWebSocket URL（ポート8884、パス/mqtt）
+const BROKER_URL = `wss://${CLUSTER_URL}:8884/mqtt`;
+
+const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
+const TOPIC_COMMAND   = "esp32_01/industrial/command";   
+
+let ledState = false;
+
+// 💡 ユーザー名とパスワードを含めて接続
+const client = mqtt.connect(BROKER_URL, {
+    username: MQTT_USER,
+    password: MQTT_PASS,
+    connectTimeout: 4000,
+    reconnectPeriod: 1000,
+});
 
         let ledState = false;
 
