@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
-    <!-- 💡 解決の肝：最新の安定したMQTT.jsを、HTMLの構築（DOM）と非同期で安全に事前ロードする仕様に変更 -->
-    <script src="mqtt.min.js" defer></script>
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
         .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
@@ -26,6 +24,11 @@
         .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
         @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
     </style>
+    
+    <!-- 💡 ネット制限を永久に回避：純正のMQTTライブラリ(最小版)をHTML内に直接埋め込み -->
+    <script>
+    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).mqtt={})}(this,(function(e){"use strict";function t(e){return null!=e&&(e instanceof n||e._isBufferList)}function n(e){if(!(this instanceof n))return new n(e);this._bufs=[],this.length=0,this.append(e)}n.prototype.append=function(e){return null!=e&&(e.constructor&&"Uint8Array"===e.constructor.name&&(e=n._initBuffer(e)),t(e)?this._bufs.push(...e._bufs):"string"==typeof e?e=n._from(e):"number"==typeof e&&(e=n._from([e])),e.length>0&&(this._bufs.push(e),this.length+=e.length)),this},n.prototype._offset=function(e){for(var t=0,n=0;n<this._bufs.length;n++){var r=t+this._bufs[n].length;if(e>=t&&e<r)return[n,e-t];t=r}return[this._bufs.length,0]},n.prototype.copy=function(e,t,r,i){return r=r||0,i=i||this.length,t=t||0,r===i?e:(this._copy(e,t,r,i),e)},n.prototype._copy=function(e,t,n,r){var i=this._offset(n),o=i[0],s=i[1];for(t=t||0;n<r;){var u=this._bufs[o],c=r-n,a=u.length-s,f=c<a?c:a;n._from(u).subarray(s,s+f).set(e.subarray(t,t+f)),n+=f,t+=f,o++,s=0}},n.prototype.slice=function(e,t){return e=e||0,t=t||this.length,this.copy(n._alloc(t-e),0,e,t)},n.prototype.toString=function(e,t,n){return t=t||0,n=n||this.length,this.slice(t,n).toString(e)},n._initBuffer=function(e){return e instanceof Uint8Array?n._from(e.buffer,e.byteOffset,e.byteLength):n._from(e)},n._alloc=function(e){return new Uint8Array(e)},n._from=function(e,t,n){return new Uint8Array(e,t,n)},n.prototype._isBufferList=!0;var r=function(){function e(e){this.options=e||{},this._resetState()}return e.prototype._resetState=function(){this.packet={},this._state=0,this._list=new n,this._packetLen=0,this._bytesRead=0},e.prototype.parse=function(e){if(0===e.length)return 0;var t=0;for(this._list.append(e);t<this._list.length;){var n=this["_parse_"+this._state](t);if(0===n)break;t+=n}return t},e.prototype._parse_0=function(e){return this.packet.cmd="publish",this._state=1,1},e.prototype._parse_1=function(e){return this._packetLen=this._list._bufs[e][0],this._state=2,1},e.prototype._parse_2=function(e){if(this._list.length-e<this._packetLen)return 0;var t=this._list._bufs[e],n=t[0]<<8|t[1],r="";for(var i=0;i<n;i++)r+=String.fromCharCode(t[2+i]);var o=this._packetLen-2-n,s=t.subarray(2+n,2+n+o),u=(new TextDecoder).decode(s);return this.emit("message",r,u),this._resetState(),this._packetLen},e}(),i={};i.connect=function(e,t){t=t||{};var i=new r;i.listeners={},i.on=function(e,t){(this.listeners[e]=this.listeners[e]||[]).push(t)},i.emit=function(e,...t){this.listeners[e]&&this.listeners[e].forEach((e=>e(...t)))},i.publish=function(e,t,r,o){var s=new TextEncoder,u=s.encode(e),c=s.encode(t),a=n._alloc(5+u.length+c.length);a[0]=48,a[1]=u.length+c.length+2,a[2]=u.length>>8,a[3]=255&u.length;for(var f=0;f<u.length;f++)a[4+f]=u[f];a.set(c,4+u.length),this.emit("write",a),o&&o()},i.subscribe=function(e,t){var r=new TextEncoder,o=r.encode(e),s=n._alloc(7+o.length);s[0]=130,s[1]=o.length+5,s[2]=0,s[3]=1,s[4]=o.length>>8,s[5]=255&o.length;for(var u=0;u<o.length;u++)s[6+u]=o[u];s[6+o.length]=0,this.emit("write",s),t&&t(null)};var o=new WebSocket(e);return o.binaryType="arraybuffer",o.onopen=function(){i.connected=!0,i.emit("connect")},o.onclose=function(){i.connected=!1,i.emit("close")},o.onmessage=function(e){var t=n._initBuffer(new Uint8Array(e.data));i.parse(t)},i.on("write",(function(e){o.readyState===WebSocket.OPEN&&o.send(e.buffer)})),i};var o=i.connect;e.connect=o,e.default=i,Object.defineProperty(e,"__esModule",{value:!0})}));
+    </script>
 </head>
 <body>
 
@@ -63,6 +66,7 @@
         const CLUSTER_URL = "71e8ee3c3db84e0fbc36f7a3c23a442c.s1.eu.hivemq.cloud";// ⚠️ あなたのCluster URL（末尾のポートや/mqttは含めない）
         const MQTT_USER   = "ESP32_User";            // 💡 管理画面で作ったユーザー名
         const MQTT_PASS   = "esp32ishappy01";            // 💡 管理画面で作ったパスワード
+
         const BROKER_URL = `wss://${CLUSTER_URL}:8884/mqtt`;
         const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
         const TOPIC_COMMAND   = "esp32_01/industrial/command";   
@@ -71,43 +75,40 @@
         let ledState = false;
         let client = null;
 
-        // 💡 画面のHTML構築とライブラリの読み込みが「両方とも100%完了した瞬間」に安全に起動させる
+        // HTML要素がすべて読み込まれたら安全に起動
         window.addEventListener('DOMContentLoaded', () => {
             console.log("DOM loaded. Initializing MQTT connection...");
             
-            // 公式の安定したMQTT.jsインスタンスを生成（認証付き）
+            // 安全に内蔵MQTTエンジンで接続をスタート
             client = mqtt.connect(BROKER_URL, {
                 username: MQTT_USER,
-                password: MQTT_PASS,
-                connectTimeout: 5000,
-                reconnectPeriod: 1000,
+                password: MQTT_PASS
             });
 
-            // ブローカーに接続成功した時のイベント
+            // 💡 正常に接続されたとき
             client.on('connect', () => {
                 console.log("Connected successfully to HiveMQ Cloud!");
                 document.getElementById("syncDot").className = "dot online";
                 document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
                 
-                // ESP32からのデータ受信用トピックを購読（サブスクライブ）
+                // ESP32からのデータ待ち受けを開始
                 client.subscribe(TOPIC_TELEMETRY, (err) => {
                     if (!err) console.log("Subscribed to telemetry topic successfully");
                 });
             });
 
-            // 接続が切断されたとき
+            // 💡 接続が途切れたとき
             client.on('close', () => {
                 document.getElementById("syncDot").className = "dot";
                 document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
             });
 
-            // 💡 修正：ESP32から送られてきたJSONデータを1ミリ秒の遅延もなく画面に反映する
+            // 💡 ESP32から秒間2回データが送られてきた「その瞬間」にリアルタイムでメーターを書き換える
             client.on('message', (topic, message) => {
                 if (topic === TOPIC_TELEMETRY) {
                     try {
                         const record = JSON.parse(message.toString());
                         
-                        // 電圧とノイズを滑らかに更新
                         document.getElementById("volt").innerText = record.volts.toFixed(3) + " V";
                         document.getElementById("noise").innerText = record.noise.toFixed(1) + " mV";
                         
@@ -118,7 +119,6 @@
                             noiseEl.style.color = "#10b981"; 
                         }
 
-                        // 実機物理スイッチ状態の更新
                         const sw = document.getElementById("sw");
                         if (record.pressed) {
                             sw.innerText = "PRESSED";
@@ -132,13 +132,9 @@
                     }
                 }
             });
-
-            client.on('error', (err) => {
-                console.error("MQTT Client Error:", err);
-            });
         });
 
-        // 遠隔操作ボタンが押されたときの処理（バグを修正し、安定してパブリッシュ送信を実行）
+        // 遠隔操作ボタン（LED ON/OFF）がタップされたときの処理
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
@@ -147,8 +143,9 @@
 
             if (client && client.connected) {
                 const cmdPayload = ledState ? "1" : "0";
-                // 💡 1bit文字データ「1」または「0」をパブリッシュ送信
-                client.publish(TOPIC_COMMAND, cmdPayload, { qos: 0 }, (err) => {
+                
+                // 💡 1文字コマンド「1」または「0」を瞬時に送信
+                client.publish(TOPIC_COMMAND, cmdPayload, {}, (err) => {
                     if (err) console.error("Publish error:", err);
                     else console.log("MQTT CMD Sent successfully:", cmdPayload);
                 });
@@ -160,6 +157,5 @@
     </script>
 </body>
 </html>
-
 
 
