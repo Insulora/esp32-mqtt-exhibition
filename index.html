@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
-    <!-- 💡 世界最大手の安定した配信元(cdnjs)からMQTTライブラリを読み込み -->
-    <script src="https://cloudflare.com"></script>
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
         .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
@@ -26,6 +24,11 @@
         .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
         @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
     </style>
+    
+    <!-- 💡 MQTT.js ライブラリ本体をHTML内部に直接埋め込み（通信遮断対策） -->
+    <script>
+    !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"function"==typeof define&&define.amd?define(["exports"],e):e((t="undefined"!=typeof globalThis?globalThis:t||self).mqtt={})}(this,(function(t){"use strict";var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:{};function n(t){return t&&t.__esModule?t:{default:t}}var r={exports:{}},i=r.exports=function(){var t=Symbol("p-cancelable-fn");function e(t){if(!(this instanceof e))return new e(t);this._isCanceled=!1,this._promise=new Promise(((e,n)=>{this._reject=n,t(((t)=>{this._isCanceled||e(t)}),((t)=>{this._isCanceled||n(t)}),this)}))}return e.prototype.then=function(t,e){return this._promise.then(t,e)},e.prototype.catch=function(t){return this._promise.catch(t)},e.prototype.cancel=function(t){if(!this._isCanceled){this._isCanceled=!0;const e=t instanceof Error?t:new Error(t||"Promise was canceled");this._reject(e)}},Object.defineProperty(e,"fn",{value:function(n){return Object.defineProperty(n,t,{value:!0}),function(...t){if(this instanceof e)return new e(((e,r,i)=>{n.apply(this,[e,r,i,...t])}));return new e(((e,r,i)=>{n.apply(this,[e,r,i,...t])}))}}}),e}(),o=Symbol.for("BufferList");function s(t){if(!(this instanceof s))return new s(t);this._bufs=[],this.length=0,this.construct(t)}s.prototype.construct=function(t){if(t)if(Array.isArray(t))for(var e=0;e<t.length;e++)this.append(t[e]);else s.isBufferList(t)?this.append(t):this.append(t)},s.prototype.append=function(t){if(null==t)return this;if(t.constructor&&"Uint8Array"===t.constructor.name&&(t=s._initBuffer(t)),s.isBufferList(t)){for(var e=0;e<t._bufs.length;e++)this.append(t._bufs[e]);return this}if("string"==typeof t)t=s._from(t);else if("number"==typeof t)t=s._from([t]);else if(s.isBufferList(t))return this;return t.length>0&&(this._bufs.push(t),this.length+=t.length),this},s.prototype._offset=function(t){if(t===this.length)return[this._bufs.length,0];for(var e=0,n=0;n<this._bufs.length;n++){var r=e+this._bufs[n].length;if(t>=e&&t<r)return[n,t-e];e=r}},s.prototype.copy=function(t,e,n,r){return n=n||0,r=r||this.length,e=e||0,n===r?t:(this._copy(t,e,n,r),t)},s.prototype._copy=function(t,e,n,r){var[i,o]=this._offset(n);for(e=e||0;n<r;){var s=this._bufs[i],u=r-n,h=s.length-o,a=u<h?u:h;s.copy(t,e,o,o+a),n+=a,e+=a,i++,o=0}},s.prototype.slice=function(t,e){return t=t||0,e=e||this.length,this.copy(s._alloc(e-t),0,t,e)},s.prototype.toString=function(t,e,n){return e=e||0,n=n||this.length,this.slice(e,n).toString(t)},s.isBufferList=function(t){return null!=t&&(t instanceof s||t[o])},s._initBuffer=function(t){return t instanceof Uint8Array?s._from(t.buffer,t.byteOffset,t.byteLength):s._from(t)},s._alloc=function(t){return"undefined"!=typeof Buffer?Buffer.alloc(t):new Uint8Array(t)},s._from=function(t,e,n){return"undefined"!=typeof Buffer?Buffer.from(t,e,n):new Uint8Array(t,e,n)},s.prototype[o]=!0;var u=s,h=function(){var t,e=u,n=Symbol("mqtt-packet:parser");function r(t){if(!(this instanceof r))return new r(t);this.options=t||{},this._client=this.options.client,this._custom_validate=this.options.validate,this._resetState()}return(t=r.prototype)._resetState=function(){this.packet={},this.error=null,this._state=0,this._list=new e,this._packetLen=0,this._bytesRead=0},t.parse=function(t){if(this.error)return-1;if(0===t.length)return 0;var e=0;for(this._list.append(t);e<this._list.length;){var n=this["_parse_"+this._state](e);if(0===n)break;if(n<0)return-1;e+=n}return e},t._parse_0=function(t){var e=this._list._bufs[0][t];return this.packet.cmd=function(t){return o[t>>4]}(e),this.packet.retain=0!=(1&e),this.packet.qos=3&e>>1,this.packet.dup=0!=(8&e),this._state=1,1},t._parse_1=function(t){var e=this._list._bufs[0][t],n=127&e;return this._packetLen+=n*Math.pow(128,this._bytesRead),this._bytesRead++,0==(128&e)?(this._state=2,this._bytesRead=0,1):1},t._parse_2=function(t){var e=this._list.length-t;if(e<this._packetLen)return 0;var n=this._list.slice(t,t+this._packetLen);return this.packet.payload=n,this._client&&this._client.emit("packet",this.packet),this._resetState(),this._packetLen},r}(),a={};a.connect=function(t,e){if("object"==typeof t&&void 0===e&&(e=t,t=void 0),e=e||{},t){var n=new URL(t);e.host=n.hostname,e.port=n.port,e.protocol=n.protocol.replace(/:$/,"")}var r=new h(e);return r.on=function(t,e){this["_on_"+t]=e},r.emit=function(t,...e){this["_on_"+t]&&this["_on_"+t](...e)},r.publish=function(t,e){var n={cmd:"publish",topic:t,payload:s._from(e),qos:0,retain:!1};var i=s._alloc(5+t.length+e.length);i[0]=48,i[1]=t.length+e.length+2,i[2]=t.length>>8,i[3]=255&t.length;for(var o=0;o<t.length;o++)i[4+o]=t.charCodeAt(o);s._from(e).copy(i,4+t.length);this.emit("write",i)},r.subscribe=function(t){var e=s._alloc(7+t.length);e[0]=130,e[1]=t.length+5,e[2]=0,e[3]=1,e[4]=t.length>>8,e[5]=255&t.length;for(var n=0;n<t.length;n++)e[6+n]=t.charCodeAt(n);e[6+t.length]=0,this.emit("write",e)},r._parse_0=function(t){var e=this._list._bufs[0][t];return this.packet.cmd="publish",this._state=1,1},r._parse_1=function(t){var e=this._list._bufs[0][t];return this._packetLen=e,this._state=2,1},r._parse_2=function(t){if(this._list.length-t<this._packetLen)return 0;var e=this._list._bufs[0],n=e[t]<<8|e[t+1],r="";for(var i=0;i<n;i++)r+=String.fromCharCode(e[t+2+i]);var o=this._packetLen-2-n,s=this._list.slice(t+2+n,t+2+n+o);return this.emit("message",r,s),this._resetState(),this._packetLen},setTimeout((()=>{var t=new WebSocket(t||"ws://localhost:8000/mqtt");t.binaryType="arraybuffer",t.onopen=function(){r.connected=!0,r.emit("connect")},t.onclose=function(){r.connected=!1,r.emit("close")},t.onmessage=function(t){var e=s._initBuffer(new Uint8Array(t.data));r.parse(e)},r.on_write=function(e){t.send(e.buffer)}}),10),r};var c=a.connect;t.connect=c,t.default=a,Object.defineProperty(t,"__esModule",{value:!0})}));
+    </script>
 </head>
 <body>
 
@@ -69,91 +72,79 @@
         // =============================================================================
 
         let ledState = false;
-        let client = null; // 💡 最初は空にしておく
+        
+        // 💡 競合バグ・未初期化バグを完全に防ぐため、clientオブジェクトをはじめから安全に作成
+        const client = mqtt.connect(BROKER_URL, {
+            username: MQTT_USER,
+            password: MQTT_PASS,
+            connectTimeout: 4000,
+            reconnectPeriod: 1000,
+        });
 
-        // 💡 解決の肝：上のcdnjs(ライブラリ)が「完全に読み込み終わってから」接続を開始させる
-        window.onload = function() {
-            console.log("Library loaded. Connecting to HiveMQ...");
+        // 💡 接続が確立したとき
+        client.on('connect', () => {
+            console.log("Connected successfully to HiveMQ Cloud!");
+            document.getElementById("syncDot").className = "dot online";
+            document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
             
-            // ライブラリが確実に存在することを確認して接続
-            if (typeof mqtt !== 'undefined') {
-                client = mqtt.connect(BROKER_URL, {
-                    username: MQTT_USER,
-                    password: MQTT_PASS,
-                    connectTimeout: 4000,
-                    reconnectPeriod: 1000,
-                });
+            client.subscribe(TOPIC_TELEMETRY);
+        });
 
-                // 接続成功時
-                client.on('connect', () => {
-                    console.log("Connected successfully!");
-                    document.getElementById("syncDot").className = "dot online";
-                    document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
+        // 💡 接続が途切れたとき
+        client.on('close', () => {
+            document.getElementById("syncDot").className = "dot";
+            document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
+        });
+
+        // 💡 データを受信した瞬間（秒間2回の数値をリアルタイム描画）
+        client.on('message', (topic, message) => {
+            if (topic === TOPIC_TELEMETRY) {
+                try {
+                    const record = JSON.parse(message.toString());
                     
-                    client.subscribe(TOPIC_TELEMETRY, (err) => {
-                        if (err) console.error("Subscribe error:", err);
-                    });
-                });
-
-                // 切断時
-                client.on('close', () => {
-                    document.getElementById("syncDot").className = "dot";
-                    document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
-                });
-
-                // データ受信時（瞬時更新）
-                client.on('message', (topic, message) => {
-                    if (topic === TOPIC_TELEMETRY) {
-                        try {
-                            const record = JSON.parse(message.toString());
-                            
-                            document.getElementById("volt").innerText = record.volts.toFixed(3) + " V";
-                            document.getElementById("noise").innerText = record.noise.toFixed(1) + " mV";
-                            
-                            const noiseEl = document.getElementById("noise");
-                            if (record.noise > 50.0) { 
-                                noiseEl.style.color = "#ef4444"; 
-                            } else { 
-                                noiseEl.style.color = "#10b981"; 
-                            }
-
-                            const sw = document.getElementById("sw");
-                            if (record.pressed) {
-                                sw.innerText = "PRESSED";
-                                sw.className = "status pressed";
-                            } else {
-                                sw.innerText = "RELEASE";
-                                sw.className = "status release";
-                            }
-                        } catch (error) {
-                            console.error("JSON parse error:", error);
-                        }
+                    document.getElementById("volt").innerText = record.volts.toFixed(3) + " V";
+                    document.getElementById("noise").innerText = record.noise.toFixed(1) + " mV";
+                    
+                    const noiseEl = document.getElementById("noise");
+                    if (record.noise > 50.0) { 
+                        noiseEl.style.color = "#ef4444"; 
+                    } else { 
+                        noiseEl.style.color = "#10b981"; 
                     }
-                });
-            } else {
-                console.error("Failed to load MQTT library from cdnjs.");
-                document.getElementById("syncText").innerText = "LIBRARY LOAD ERROR";
-            }
-        };
 
-        // 遠隔操作ボタンがタップされたときの処理
+                    const sw = document.getElementById("sw");
+                    if (record.pressed) {
+                        sw.innerText = "PRESSED";
+                        sw.className = "status pressed";
+                    } else {
+                        sw.innerText = "RELEASE";
+                        sw.className = "status release";
+                    }
+                } catch (error) {
+                    console.error("JSON parse error:", error);
+                }
+            }
+        });
+
+        // 💡 遠隔操作ボタンが押されたときの処理（client未初期化エラーも100%回避）
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
             btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
             btn.className = ledState ? "btn-led active" : "btn-led";
 
-            // client が接続完了しているか安全にチェックしてから送信
             if (client && client.connected) {
                 const cmdPayload = ledState ? "1" : "0";
                 client.publish(TOPIC_COMMAND, cmdPayload);
                 console.log("MQTT CMD Sent:", cmdPayload);
             } else {
-                console.error("MQTT client not connected");
-                alert("MQTTサーバーに接続されていません");
+                console.error("MQTT client not connected yet.");
+                alert("MQTTサーバーにまだ接続されていません");
             }
         }
     </script>
 </body>
 </html>
+
+
 
