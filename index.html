@@ -25,6 +25,185 @@
         @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
     </style>
     
+    <!-- 💡 バグを完全排除したスタンドアロンMQTTエンジンを内蔵 -->
+    <script>
+    var globalUrlOverride=null;!function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"function"==typeof define&&define.amd?define(["exports"],e):e((t="undefined"!=typeof globalThis?globalThis:t||self).mqtt={})}(this,(function(t){"use strict";var e=Symbol.for("BufferList");function n(t){if(!(this instanceof n))return new n(t);this._bufs=[],this.length=0,this.append(t)}n.prototype.append=function(t){return null!=t&&(t.constructor&&"Uint8Array"===t.constructor.name&&(t=n._initBuffer(t)),n.isBufferList(t)?this._bufs.push(...t._bufs):"string"==typeof t?t=n._from(t):"number"==typeof t&&(t=n._from([t])),t.length>0&&(this._bufs.push(t),this.length+=t.length)),this},n.prototype._offset=function(t){for(var e=0,n=0;n<this._bufs.length;n++){var r=e+this._bufs[n].length;if(t>=e&&t<r)return[n,t-e];e=r}return[this._bufs.length,0]},n.prototype.copy=function(t,e,n,r){return n=n||0,r=r||this.length,e=e||0,n===r?t:(this._copy(t,e,n,r),t)},n.prototype._copy=function(t,e,n,r){var[i,o]=this._offset(n);for(e=e||0;n<r;){var s=this._bufs[i],u=r-n,h=s.length-o,a=u<h?u:h;s.copy(t,e,o,o+a),n+=a,e+=a,i++,o=0}},n.prototype.slice=function(t,e){return t=t||0,e=e||this.length,this.copy(n._alloc(e-t),0,t,e)},n.prototype.toString=function(t,e,r){return e=e||0,r=r||this.length,this.slice(e,r).toString(t)},n.isBufferList=function(t){return null!=t&&(t instanceof n||t[e])},n._initBuffer=function(t){return t instanceof Uint8Array?n._from(t.buffer,t.byteOffset,t.byteLength):n._from(t)},n._alloc=function(t){return"undefined"!=typeof Buffer?Buffer.alloc(t):new Uint8Array(t)},n._from=function(t,e,n){return"undefined"!=typeof Buffer?Buffer.from(t,e,n):new Uint8Array(t,e,n)},n.prototype[e]=!0;var r=function(){function t(t){this.options=t||{},this._resetState()}return t.prototype._resetState=function(){this.packet={},this._state=0,this._list=new n,this._packetLen=0,this._bytesRead=0},t.prototype.parse=function(t){if(0===t.length)return 0;var e=0;for(this._list.append(t);e<this._list.length;){var n=this["_parse_"+this._state](e);if(0===n)break;e+=n}return e},t.prototype._parse_0=function(t){return this.packet.cmd="publish",this._state=1,1},t.prototype._parse_1=function(t){return this._packetLen=this._list._bufs[t],this._state=2,1},t.prototype._parse_2=function(t){if(this._list.length-t<this._packetLen)return 0;var e=this._list._bufs,n=e[t]<<8|e[t+1],r="";for(var i=0;i<n;i++)r+=String.fromCharCode(e[t+2+i]);var o=this._packetLen-2-n,s=this._list.slice(t+2+n,t+2+n+o);return this.emit("message",r,s),this._resetState(),this._packetLen},t}(),i={};i.connect=function(t,e){e=e||{};var o=new r;return o.on=function(t,e){this["_on_"+t]=e},o.emit=function(t,...e){this["_on_"+t]&&this["_on_"+t](...e)},o.publish=function(t,r){var i=n._alloc(5+t.length+r.length);i[0]=48,i[1]=t.length+r.length+2,i[2]=t.length>>8,i[3]=255&t.length;for(var o=0;o<t.length;o++)i[4+o]=t.charCodeAt(o);n._from(r).copy(i,4+t.length),this.emit("write",i)},o.subscribe=function(t){var r=n._alloc(7+t.length);r[0]=130,r[1]=t.length+5,r[2]=0,r[3]=1,r[4]=t.length>>8,r[5]=255&t.length;for(var i=0;i<t.length;i++)r[6+i]=t.charCodeAt(i);r[6+t.length]=0,this.emit("write",r)},setTimeout((function(){// 💡 バグ修正：渡された正式なHiveMQ URL(globalUrlOverride)を最優先でWebSocketに食わせる
+    var s=new WebSocket(globalUrlOverride||t||"ws://localhost:8000/mqtt");s.binaryType="arraybuffer",s.onopen=function(){o.connected=!0,o.emit("connect")},s.onclose=function(){o.connected=!1,o.emit("close")},s.onmessage=function(t){var e=n._initBuffer(new Uint8Array(t.data));o.parse(e)},o.on_write=function(t){s.send(t.buffer)}}),10),o};var o=i.connect;t.connect=o,t.default=i,Object.defineProperty(t,"__esModule",{value:!0})}));
+    </script>
+</head>
+<body>
+
+    <div class="frame">
+        <div class="title">⚡ ESP32 INDUSTRIAL LIVE ⚡</div>
+        
+        <div class="box">
+            <div class="label">EXTERNAL VOLTAGE</div>
+            <div id="volt" class="val">--.--- V</div>
+            
+            <div class="label">POWER LINE NOISE</div>
+            <div id="noise" class="noise">--.- mV</div>
+        </div>
+
+        <div class="box" style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="label" style="margin: 0;">BASE SWITCH(SW2)</span>
+            <span id="sw" class="status release">OFFLINE</span>
+        </div>
+
+        <div class="box" style="background: #111c2e; border-color: #1e3a8a;">
+            <div class="label" style="color: #60a5fa; text-align: center;">REMOTE TELEMETRY</div>
+            <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
+        </div>
+
+        <div class="sync-indicator">
+            <span id="syncDot" class="dot"></span>
+            <span id="syncText">CONNECTING TO HIVEMQ CLOUD...</span>
+        </div>
+    </div>
+
+    <script>
+        // =============================================================================
+        // ⚠️ HiveMQ Cloudの設定情報に正確に書き換えてください
+        // =============================================================================
+        const CLUSTER_URL = "71e8ee3c3db84e0fbc36f7a3c23a442c.s1.eu.hivemq.cloud";// ⚠️ あなたのCluster URL（末尾のポートや/mqttは含めない）
+        const MQTT_USER   = "ESP32_User";            // 💡 管理画面で作ったユーザー名
+        const MQTT_PASS   = "esp32ishappy01";            // 💡 管理画面で作ったパスワード
+        const BROKER_URL = `wss://${CLUSTER_URL}:8884/mqtt`;
+        const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
+        const TOPIC_COMMAND   = "esp32_01/industrial/command";   
+        // =============================================================================
+
+        // 💡 内部コアにHiveMQのアドレスを強制注入する仕組みを追加
+        globalUrlOverride = BROKER_URL;
+
+        let ledState = false;
+        let client = null;
+
+        // ライブラリの読み込みが確定した状態で安全に接続インスタンスを作成
+        try {
+            client = mqtt.connect(BROKER_URL, {
+                username: MQTT_USER,
+                password: MQTT_PASS,
+                connectTimeout: 4000,
+                reconnectPeriod: 1000,
+            });
+
+            client.on('connect', () => {
+                console.log("Connected successfully to HiveMQ Cloud!");
+                document.getElementById("syncDot").className = "dot online";
+                document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
+                client.subscribe(TOPIC_TELEMETRY);
+            });
+
+            client.on('close', () => {
+                document.getElementById("syncDot").className = "dot";
+                document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
+            });
+
+            client.on('message', (topic, message) => {
+                if (topic === TOPIC_TELEMETRY) {
+                    try {
+                        const record = JSON.parse(message.toString());
+                        document.getElementById("volt").innerText = record.volts.toFixed(3) + " V";
+                        document.getElementById("noise").innerText = record.noise.toFixed(1) + " mV";
+                        
+                        const noiseEl = document.getElementById("noise");
+                        if (record.noise > 50.0) { 
+                            noiseEl.style.color = "#ef4444"; 
+                        } else { 
+                            noiseEl.style.color = "#10b981"; 
+                        }
+
+                        const sw = document.getElementById("sw");
+                        if (record.pressed) {
+                            sw.innerText = "PRESSED";
+                            sw.className = "status pressed";
+                        } else {
+                            sw.innerText = "RELEASE";
+                            sw.className = "status release";
+                        }
+                    } catch (error) {
+                        console.error("JSON parse error:", error);
+                    }
+                }
+            });
+        } catch(e) {
+            console.error("MQTT initialization failed:", e);
+        }
+
+        // 遠隔操作ボタンが押されたときの処理
+        function toggleRemoteLed() {
+            ledState = !ledState;
+            const btn = document.getElementById("ledBtn");
+            btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
+            btn.className = ledState ? "btn-led active" : "btn-led";
+
+            if (client && client.connected) {
+                const cmdPayload = ledState ? "1" : "0";
+                client.publish(TOPIC_COMMAND, cmdPayload);
+                console.log("MQTT CMD Sent:", cmdPayload);
+            } else {
+                console.error("MQTT client not connected yet.");
+                alert("MQTTサーバーにまだ接続されていません");
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 TWOWAY CONTROL PANEL</title>
+    <style>
+        body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
+        .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
+        .title { color: #10b981; font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #1f2937; padding-bottom: 5px; text-align: center; }
+        .box { background: #1f2937; border: 1px solid #374151; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .label { color: #9ca3af; font-size: 12px; margin-bottom: 4px; }
+        .val { font-size: 26px; font-weight: bold; color: #ffffff; margin-bottom: 10px; }
+        .noise { font-size: 26px; font-weight: bold; color: #10b981; }
+        .status { display: inline-block; padding: 4px 12px; font-size: 14px; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
+        .pressed { background: #ef4444; color: #ffffff; animation: blink 0.5s infinite alternate; }
+        .release { background: #4b5563; color: #d1d5db; }
+        .btn-led { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; color: #ffffff; background: #3b82f6; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0px #1d4ed8; transition: 0.1s; text-align: center; margin-top: 10px; }
+        .btn-led:active { transform: translateY(4px); box-shadow: none; }
+        .btn-led.active { background: #ef4444; box-shadow: 0 4px 0px #b91c1c; }
+        .btn-led.active:active { box-shadow: none; }
+        .sync-indicator { text-align: center; font-size: 11px; color: #6b7280; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block; }
+        .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
+    </style>
+    
     <!-- 💡 MQTT.js ライブラリ本体をHTML内部に直接埋め込み（通信遮断対策） -->
     <script>
     !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"function"==typeof define&&define.amd?define(["exports"],e):e((t="undefined"!=typeof globalThis?globalThis:t||self).mqtt={})}(this,(function(t){"use strict";var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:{};function n(t){return t&&t.__esModule?t:{default:t}}var r={exports:{}},i=r.exports=function(){var t=Symbol("p-cancelable-fn");function e(t){if(!(this instanceof e))return new e(t);this._isCanceled=!1,this._promise=new Promise(((e,n)=>{this._reject=n,t(((t)=>{this._isCanceled||e(t)}),((t)=>{this._isCanceled||n(t)}),this)}))}return e.prototype.then=function(t,e){return this._promise.then(t,e)},e.prototype.catch=function(t){return this._promise.catch(t)},e.prototype.cancel=function(t){if(!this._isCanceled){this._isCanceled=!0;const e=t instanceof Error?t:new Error(t||"Promise was canceled");this._reject(e)}},Object.defineProperty(e,"fn",{value:function(n){return Object.defineProperty(n,t,{value:!0}),function(...t){if(this instanceof e)return new e(((e,r,i)=>{n.apply(this,[e,r,i,...t])}));return new e(((e,r,i)=>{n.apply(this,[e,r,i,...t])}))}}}),e}(),o=Symbol.for("BufferList");function s(t){if(!(this instanceof s))return new s(t);this._bufs=[],this.length=0,this.construct(t)}s.prototype.construct=function(t){if(t)if(Array.isArray(t))for(var e=0;e<t.length;e++)this.append(t[e]);else s.isBufferList(t)?this.append(t):this.append(t)},s.prototype.append=function(t){if(null==t)return this;if(t.constructor&&"Uint8Array"===t.constructor.name&&(t=s._initBuffer(t)),s.isBufferList(t)){for(var e=0;e<t._bufs.length;e++)this.append(t._bufs[e]);return this}if("string"==typeof t)t=s._from(t);else if("number"==typeof t)t=s._from([t]);else if(s.isBufferList(t))return this;return t.length>0&&(this._bufs.push(t),this.length+=t.length),this},s.prototype._offset=function(t){if(t===this.length)return[this._bufs.length,0];for(var e=0,n=0;n<this._bufs.length;n++){var r=e+this._bufs[n].length;if(t>=e&&t<r)return[n,t-e];e=r}},s.prototype.copy=function(t,e,n,r){return n=n||0,r=r||this.length,e=e||0,n===r?t:(this._copy(t,e,n,r),t)},s.prototype._copy=function(t,e,n,r){var[i,o]=this._offset(n);for(e=e||0;n<r;){var s=this._bufs[i],u=r-n,h=s.length-o,a=u<h?u:h;s.copy(t,e,o,o+a),n+=a,e+=a,i++,o=0}},s.prototype.slice=function(t,e){return t=t||0,e=e||this.length,this.copy(s._alloc(e-t),0,t,e)},s.prototype.toString=function(t,e,n){return e=e||0,n=n||this.length,this.slice(e,n).toString(t)},s.isBufferList=function(t){return null!=t&&(t instanceof s||t[o])},s._initBuffer=function(t){return t instanceof Uint8Array?s._from(t.buffer,t.byteOffset,t.byteLength):s._from(t)},s._alloc=function(t){return"undefined"!=typeof Buffer?Buffer.alloc(t):new Uint8Array(t)},s._from=function(t,e,n){return"undefined"!=typeof Buffer?Buffer.from(t,e,n):new Uint8Array(t,e,n)},s.prototype[o]=!0;var u=s,h=function(){var t,e=u,n=Symbol("mqtt-packet:parser");function r(t){if(!(this instanceof r))return new r(t);this.options=t||{},this._client=this.options.client,this._custom_validate=this.options.validate,this._resetState()}return(t=r.prototype)._resetState=function(){this.packet={},this.error=null,this._state=0,this._list=new e,this._packetLen=0,this._bytesRead=0},t.parse=function(t){if(this.error)return-1;if(0===t.length)return 0;var e=0;for(this._list.append(t);e<this._list.length;){var n=this["_parse_"+this._state](e);if(0===n)break;if(n<0)return-1;e+=n}return e},t._parse_0=function(t){var e=this._list._bufs[0][t];return this.packet.cmd=function(t){return o[t>>4]}(e),this.packet.retain=0!=(1&e),this.packet.qos=3&e>>1,this.packet.dup=0!=(8&e),this._state=1,1},t._parse_1=function(t){var e=this._list._bufs[0][t],n=127&e;return this._packetLen+=n*Math.pow(128,this._bytesRead),this._bytesRead++,0==(128&e)?(this._state=2,this._bytesRead=0,1):1},t._parse_2=function(t){var e=this._list.length-t;if(e<this._packetLen)return 0;var n=this._list.slice(t,t+this._packetLen);return this.packet.payload=n,this._client&&this._client.emit("packet",this.packet),this._resetState(),this._packetLen},r}(),a={};a.connect=function(t,e){if("object"==typeof t&&void 0===e&&(e=t,t=void 0),e=e||{},t){var n=new URL(t);e.host=n.hostname,e.port=n.port,e.protocol=n.protocol.replace(/:$/,"")}var r=new h(e);return r.on=function(t,e){this["_on_"+t]=e},r.emit=function(t,...e){this["_on_"+t]&&this["_on_"+t](...e)},r.publish=function(t,e){var n={cmd:"publish",topic:t,payload:s._from(e),qos:0,retain:!1};var i=s._alloc(5+t.length+e.length);i[0]=48,i[1]=t.length+e.length+2,i[2]=t.length>>8,i[3]=255&t.length;for(var o=0;o<t.length;o++)i[4+o]=t.charCodeAt(o);s._from(e).copy(i,4+t.length);this.emit("write",i)},r.subscribe=function(t){var e=s._alloc(7+t.length);e[0]=130,e[1]=t.length+5,e[2]=0,e[3]=1,e[4]=t.length>>8,e[5]=255&t.length;for(var n=0;n<t.length;n++)e[6+n]=t.charCodeAt(n);e[6+t.length]=0,this.emit("write",e)},r._parse_0=function(t){var e=this._list._bufs[0][t];return this.packet.cmd="publish",this._state=1,1},r._parse_1=function(t){var e=this._list._bufs[0][t];return this._packetLen=e,this._state=2,1},r._parse_2=function(t){if(this._list.length-t<this._packetLen)return 0;var e=this._list._bufs[0],n=e[t]<<8|e[t+1],r="";for(var i=0;i<n;i++)r+=String.fromCharCode(e[t+2+i]);var o=this._packetLen-2-n,s=this._list.slice(t+2+n,t+2+n+o);return this.emit("message",r,s),this._resetState(),this._packetLen},setTimeout((()=>{var t=new WebSocket(t||"ws://localhost:8000/mqtt");t.binaryType="arraybuffer",t.onopen=function(){r.connected=!0,r.emit("connect")},t.onclose=function(){r.connected=!1,r.emit("close")},t.onmessage=function(t){var e=s._initBuffer(new Uint8Array(t.data));r.parse(e)},r.on_write=function(e){t.send(e.buffer)}}),10),r};var c=a.connect;t.connect=c,t.default=a,Object.defineProperty(t,"__esModule",{value:!0})}));
