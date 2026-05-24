@@ -1,0 +1,3 @@
+GitHub Pagesなどで公開したURLが、例えば https://github.io だとします。
+パスワード等の接続情報を、以下のような1行のJSONテキストにします。
+json{"url":"あなたのClusterURL","user":"ユーザー名","pass":"パスワード"}
