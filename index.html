@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
-    <!-- 💡 新しく作った秘密情報ファイルを一番最初に読み込みます -->
+    <!-- 💡 config.js は空欄のままでOKです -->
     <script src="config.js"></script>
     <script src="mqtt.min.js" defer></script>
     <style>
@@ -26,60 +26,78 @@
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block; }
         .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
         @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
+        .err-msg { color: #ef4444; text-align: center; font-size: 12px; margin: 10px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="frame">
         <div class="title">⚡ ESP32 INDUSTRIAL LIVE ⚡</div>
+        <div id="errMsg" class="err-msg">⚠️ QRコードのURL引数が不正です</div>
         
         <div class="box">
             <div class="label">EXTERNAL VOLTAGE</div>
             <div id="volt" class="val">--.--- V</div>
-            
             <div class="label">POWER LINE NOISE</div>
             <div id="noise" class="noise">--.- mV</div>
         </div>
-
         <div class="box" style="display: flex; justify-content: space-between; align-items: center;">
             <span class="label" style="margin: 0;">BASE SWITCH(SW2)</span>
             <span id="sw" class="status release">OFFLINE</span>
         </div>
-
         <div class="box" style="background: #111c2e; border-color: #1e3a8a;">
             <div class="label" style="color: #60a5fa; text-align: center;">REMOTE TELEMETRY</div>
             <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
-
         <div class="sync-indicator">
             <span id="syncDot" class="dot"></span>
-            <span id="syncText">CONNECTING TO HIVEMQ CLOUD...</span>
+            <span id="syncText">QRコードをスキャン中...</span>
         </div>
     </div>
 
     <script>
-        // 💡 接続情報は config.js から自動で読み込まれます
-        const BROKER_URL = `wss://${CLUSTER_URL}:8884/mqtt`;
         const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
         const TOPIC_COMMAND   = "esp32_01/industrial/command";   
-
         let ledState = false;
         let client = null;
 
         window.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM loaded. Initializing MQTT connection with local production library...");
-            
-            // 本物のMQTTエンジンで接続開始（キープアライブ機能付き）
-            client = mqtt.connect(BROKER_URL, {
-                username: MQTT_USER,
-                password: MQTT_PASS
-            });
+            try {
+                // 💡 URLの「?key=xxxx」の部分を解析する
+                const urlParams = new URLSearchParams(window.location.search);
+                const encodedData = urlParams.get('key');
+
+                if (!encodedData) {
+                    throw new Error("No key found");
+                }
+
+                // 💡 Base64という方式でURL内の暗号（文字列）を元に戻す
+                const decodedString = atob(encodedData);
+                const config = JSON.parse(decodedString);
+
+                if (!config.url || !config.user || !config.pass) {
+                    throw new Error("Invalid config data");
+                }
+
+                // 接続開始
+                startMqtt(config.url, config.user, config.pass);
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById("syncText").innerText = "接続エラー";
+                document.getElementById("errMsg").style.display = "block";
+            }
+        });
+
+        function startMqtt(url, user, pass) {
+            const brokerUrl = `wss://${url}:8884/mqtt`;
+            document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
+
+            client = mqtt.connect(brokerUrl, { username: user, password: pass });
 
             client.on('connect', () => {
-                console.log("Connected successfully to HiveMQ Cloud!");
                 document.getElementById("syncDot").className = "dot online";
                 document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
-                
                 client.subscribe(TOPIC_TELEMETRY);
             });
 
@@ -88,36 +106,26 @@
                 document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
             });
 
-            // ESP32からパブリッシュされたデータを解釈して画面を書き換える
             client.on('message', (topic, message) => {
                 if (topic === TOPIC_TELEMETRY) {
                     try {
                         const record = JSON.parse(message.toString());
-                        
                         document.getElementById("volt").innerText = Number(record.volts).toFixed(3) + " V";
                         document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
                         
                         const noiseEl = document.getElementById("noise");
-                        if (Number(record.noise) > 50.0) { 
-                            noiseEl.style.color = "#ef4444"; 
-                        } else { 
-                            noiseEl.style.color = "#10b981"; 
-                        }
+                        noiseEl.style.color = Number(record.noise) > 50.0 ? "#ef4444" : "#10b981";
 
                         const sw = document.getElementById("sw");
                         if (record.pressed === true || record.pressed === "true") {
-                            sw.innerText = "PRESSED";
-                            sw.className = "status pressed";
+                            sw.innerText = "PRESSED"; sw.className = "status pressed";
                         } else {
-                            sw.innerText = "RELEASE";
-                            sw.className = "status release";
+                            sw.innerText = "RELEASE"; sw.className = "status release";
                         }
-                    } catch (error) {
-                        console.error("JSON parse error:", error);
-                    }
+                    } catch (e) { console.error(e); }
                 }
             });
-        });
+        }
 
         function toggleRemoteLed() {
             ledState = !ledState;
@@ -126,12 +134,9 @@
             btn.className = btn.className.includes("active") ? "btn-led" : "btn-led active";
 
             if (client && client.connected) {
-                const cmdPayload = ledState ? "1" : "0";
-                client.publish(TOPIC_COMMAND, cmdPayload);
-                console.log("MQTT CMD Sent successfully:", cmdPayload);
+                client.publish(TOPIC_COMMAND, ledState ? "1" : "0");
             } else {
-                console.error("MQTT client not connected yet.");
-                alert("MQTTサーバーに接続されていません。数秒お待ちください。");
+                alert("MQTTサーバーに接続されていません。");
             }
         }
     </script>
