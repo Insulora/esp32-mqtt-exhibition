@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
-    <!-- 💡 ステップ1で作ったファイルを、インターネットを介さずに目の前から直接読み込む -->
+    <!-- 💡 新しく作った秘密情報ファイルを一番最初に読み込みます -->
+    <script src="config.js"></script>
     <script src="mqtt.min.js" defer></script>
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
@@ -57,14 +58,10 @@
     </div>
 
     <script>
-        // =============================================================================
-        // ⚠️ HiveMQ Cloudの設定情報（英数字のespuser）を正確に書き換えてください
-        // =============================================================================
-
+        // 💡 接続情報は config.js から自動で読み込まれます
         const BROKER_URL = `wss://${CLUSTER_URL}:8884/mqtt`;
         const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
         const TOPIC_COMMAND   = "esp32_01/industrial/command";   
-        // =============================================================================
 
         let ledState = false;
         let client = null;
@@ -91,7 +88,7 @@
                 document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
             });
 
-            // 💡 ESP32からパブリッシュされたデータを完璧に解釈して一瞬で画面を書き換える
+            // ESP32からパブリッシュされたデータを解釈して画面を書き換える
             client.on('message', (topic, message) => {
                 if (topic === TOPIC_TELEMETRY) {
                     try {
@@ -140,6 +137,3 @@
     </script>
 </body>
 </html>
-
-
-
