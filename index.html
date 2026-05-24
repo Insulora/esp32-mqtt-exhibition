@@ -61,7 +61,7 @@
         let ledState = false;
         let client = null;
 
-        window.addEventListener('DOMContentLoaded', () => {
+             window.addEventListener('DOMContentLoaded', () => {
             try {
                 // 💡 URLの「?key=xxxx」の部分を解析する
                 const urlParams = new URLSearchParams(window.location.search);
@@ -71,8 +71,17 @@
                     throw new Error("No key found");
                 }
 
-                // 💡 Base64という方式でURL内の暗号（文字列）を元に戻す
-                const decodedString = atob(encodedData);
+                // --------- 💡 ここから下を修正・追加します ---------
+                // 4の倍数になるように末尾に「=」を自動でくっつける処理を追加
+                const paddedData = encodedData.padEnd(encodedData.length + (4 - encodedData.length % 4) % 4, '=');
+                
+                // 変換エラーを防ぐため、URLセーフな文字（-や_）を通常のBase64文字（+や/）に置換
+                const base64 = paddedData.replace(/-/g, '+').replace(/_/g, '/');
+                
+                // 解読を実行
+                const decodedString = atob(base64);
+                // --------------------------------------------------
+                
                 const config = JSON.parse(decodedString);
 
                 if (!config.url || !config.user || !config.pass) {
