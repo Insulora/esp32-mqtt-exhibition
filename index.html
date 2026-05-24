@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
     
-    <!-- 💡 世界中で使われている本物のMQTTライブラリを直接1本だけ読み込みます -->
+    <!-- 💡 【世界標準】ブラウザ用MQTTライブラリを直接1本だけ読み込みます -->
     <script src="https://unpkg.com"></script>
 
     <style>
@@ -72,7 +72,7 @@
                     throw new Error("URLに引数（?key=）がありません");
                 }
 
-                // 2. Base64文字列をそのままシンプルにデコード
+                // 2. Base64文字列をデコード
                 const decodedString = atob(encodedData);
                 const config = JSON.parse(decodedString);
 
@@ -80,11 +80,11 @@
                     throw new Error("データ構造が不正です");
                 }
 
-                // 3. 標準的な方法でMQTT接続を開始
+                // 3. MQTT接続を開始
                 const brokerUrl = `wss://${config.url}:8884/mqtt`;
                 document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
 
-                // 💡 世界標準ライブラリ（mqttオブジェクト）を素直に使用
+                // ライブラリの「mqtt」オブジェクトをそのまま使用
                 client = mqtt.connect(brokerUrl, { 
                     username: config.user, 
                     password: config.pass 
