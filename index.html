@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
-    <!-- 💡 config.js は空欄のままでOKです -->
-    <script src="config.js"></script>
-    <script src="https://unpkg.com"></script>
     
+    <!-- 💡 【重要】競合を防ぐため、外部ファイルを一切排除し、信頼性の高い通信エンジンを確実に最初に読み込みます -->
+    <script src="https://cloudflare.com"></script>
+
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
         .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
@@ -62,44 +62,46 @@
         let ledState = false;
         let client = null;
 
-            window.addEventListener('DOMContentLoaded', () => {
+        // 💡 ページの読み込み完了後に確実にデコードを実行する
+        window.addEventListener('load', () => {
             try {
-                // 💡 1. URLから「?key=xxxx」の部分を正確に取得
+                // 1. URLパラメータの取得
                 const urlParams = new URLSearchParams(window.location.search);
                 let encodedData = urlParams.get('key');
 
                 if (!encodedData) {
-                    throw new Error("No key found");
+                    throw new Error("URLの「?key=」の後に暗号データが見つかりません。");
                 }
 
-                // 💡 2. 【最重要】URL転送時にスペース（%20）に化けてしまったプラス記号を「+」に強制復元
+                // 2. 特殊文字の復元処理
                 encodedData = encodedData.replace(/ /g, '+');
-
-                // 💡 3. ブラウザ制限（4の倍数）対策のため、末尾の「=」を自動補完
                 const pad = 4 - (encodedData.length % 4);
                 if (pad < 4) {
                     encodedData += '='.repeat(pad);
                 }
-
-                // 💡 4. URLセーフな特殊文字の置換
                 const base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
                 
-                // 💡 5. 文字化けを完全に防ぐ、日本語・特殊文字対応の安全なデコード処理
+                // 3. 安全なデコードとJSON展開
                 const decodedString = decodeURIComponent(escape(atob(base64)));
                 const config = JSON.parse(decodedString);
 
                 if (!config.url || !config.user || !config.pass) {
-                    throw new Error("Invalid config data");
+                    throw new Error("復元したデータに必要な接続情報が含まれていません。");
                 }
 
-                // 接続開始
+                // 💡 ライブラリが確実に読み込まれているかチェック
+                if (typeof mqtt === 'undefined') {
+                    throw new Error("MQTT通信エンジン（mqtt）がブラウザで起動していません。ネットワーク環境を確認してください。");
+                }
+
+                // 4. 接続開始
                 startMqtt(config.url, config.user, config.pass);
 
             } catch (e) {
                 console.error("解読エラー詳細:", e);
                 document.getElementById("syncText").innerText = "接続エラー";
                 document.getElementById("errMsg").style.display = "block";
-                document.getElementById("errMsg").innerText = "⚠️ QRコードのデータ復元に失敗しました: " + e.message;
+                document.getElementById("errMsg").innerText = "⚠️ エラー: " + e.message;
             }
         });
 
@@ -107,6 +109,7 @@
             const brokerUrl = `wss://${url}:8884/mqtt`;
             document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
 
+            // 小文字の mqtt.connect で確実に動作します
             client = mqtt.connect(brokerUrl, { username: user, password: pass });
 
             client.on('connect', () => {
