@@ -61,27 +61,30 @@
         let ledState = false;
         let client = null;
 
-             window.addEventListener('DOMContentLoaded', () => {
+            window.addEventListener('DOMContentLoaded', () => {
             try {
-                // 💡 URLの「?key=xxxx」の部分を解析する
+                // 💡 1. URLから「?key=xxxx」の部分を正確に取得
                 const urlParams = new URLSearchParams(window.location.search);
-                const encodedData = urlParams.get('key');
+                let encodedData = urlParams.get('key');
 
                 if (!encodedData) {
                     throw new Error("No key found");
                 }
 
-                // --------- 💡 ここから下を修正・追加します ---------
-                // 4の倍数になるように末尾に「=」を自動でくっつける処理を追加
-                const paddedData = encodedData.padEnd(encodedData.length + (4 - encodedData.length % 4) % 4, '=');
+                // 💡 2. 【最重要】URL転送時にスペース（%20）に化けてしまったプラス記号を「+」に強制復元
+                encodedData = encodedData.replace(/ /g, '+');
+
+                // 💡 3. ブラウザ制限（4の倍数）対策のため、末尾の「=」を自動補完
+                const pad = 4 - (encodedData.length % 4);
+                if (pad < 4) {
+                    encodedData += '='.repeat(pad);
+                }
+
+                // 💡 4. URLセーフな特殊文字の置換
+                const base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
                 
-                // 変換エラーを防ぐため、URLセーフな文字（-や_）を通常のBase64文字（+や/）に置換
-                const base64 = paddedData.replace(/-/g, '+').replace(/_/g, '/');
-                
-                // 解読を実行
-                const decodedString = atob(base64);
-                // --------------------------------------------------
-                
+                // 💡 5. 文字化けを完全に防ぐ、日本語・特殊文字対応の安全なデコード処理
+                const decodedString = decodeURIComponent(escape(atob(base64)));
                 const config = JSON.parse(decodedString);
 
                 if (!config.url || !config.user || !config.pass) {
@@ -92,9 +95,10 @@
                 startMqtt(config.url, config.user, config.pass);
 
             } catch (e) {
-                console.error(e);
+                console.error("解読エラー詳細:", e);
                 document.getElementById("syncText").innerText = "接続エラー";
                 document.getElementById("errMsg").style.display = "block";
+                document.getElementById("errMsg").innerText = "⚠️ QRコードのデータ復元に失敗しました: " + e.message;
             }
         });
 
