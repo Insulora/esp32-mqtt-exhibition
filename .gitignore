@@ -1,2 +1,3 @@
 # パスワードが書かれたファイルをGitの管理から外す
 config.js
+secrets.h
