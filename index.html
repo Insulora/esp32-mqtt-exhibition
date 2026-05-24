@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 TWOWAY CONTROL PANEL</title>
     
-    <!-- 💡 【重要】競合を防ぐため、外部ファイルを一切排除し、信頼性の高い通信エンジンを確実に最初に読み込みます -->
-    <script src="https://cloudflare.com"></script>
+    <!-- 💡 世界中で使われている本物のMQTTライブラリを直接1本だけ読み込みます -->
+    <script src="https://unpkg.com"></script>
 
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
@@ -62,87 +62,72 @@
         let ledState = false;
         let client = null;
 
-        // 💡 ページの読み込み完了後に確実にデコードを実行する
-        window.addEventListener('load', () => {
+        window.addEventListener('DOMContentLoaded', () => {
             try {
-                // 1. URLパラメータの取得
+                // 1. URLから「?key=xxxx」を取得
                 const urlParams = new URLSearchParams(window.location.search);
-                let encodedData = urlParams.get('key');
+                const encodedData = urlParams.get('key');
 
                 if (!encodedData) {
-                    throw new Error("URLの「?key=」の後に暗号データが見つかりません。");
+                    throw new Error("URLに引数（?key=）がありません");
                 }
 
-                // 2. 特殊文字の復元処理
-                encodedData = encodedData.replace(/ /g, '+');
-                const pad = 4 - (encodedData.length % 4);
-                if (pad < 4) {
-                    encodedData += '='.repeat(pad);
-                }
-                const base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
-                
-                // 3. 安全なデコードとJSON展開
-                const decodedString = decodeURIComponent(escape(atob(base64)));
+                // 2. Base64文字列をそのままシンプルにデコード
+                const decodedString = atob(encodedData);
                 const config = JSON.parse(decodedString);
 
                 if (!config.url || !config.user || !config.pass) {
-                    throw new Error("復元したデータに必要な接続情報が含まれていません。");
+                    throw new Error("データ構造が不正です");
                 }
 
-                // 💡 ライブラリが確実に読み込まれているかチェック
-                if (typeof mqtt === 'undefined') {
-                    throw new Error("MQTT通信エンジン（mqtt）がブラウザで起動していません。ネットワーク環境を確認してください。");
-                }
+                // 3. 標準的な方法でMQTT接続を開始
+                const brokerUrl = `wss://${config.url}:8884/mqtt`;
+                document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
 
-                // 4. 接続開始
-                startMqtt(config.url, config.user, config.pass);
+                // 💡 世界標準ライブラリ（mqttオブジェクト）を素直に使用
+                client = mqtt.connect(brokerUrl, { 
+                    username: config.user, 
+                    password: config.pass 
+                });
+
+                client.on('connect', () => {
+                    document.getElementById("syncDot").className = "dot online";
+                    document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
+                    client.subscribe(TOPIC_TELEMETRY);
+                });
+
+                client.on('close', () => {
+                    document.getElementById("syncDot").className = "dot";
+                    document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
+                });
+
+                client.on('message', (topic, message) => {
+                    if (topic === TOPIC_TELEMETRY) {
+                        try {
+                            const record = JSON.parse(message.toString());
+                            document.getElementById("volt").innerText = Number(record.volts).toFixed(3) + " V";
+                            document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
+                            
+                            const noiseEl = document.getElementById("noise");
+                            noiseEl.style.color = Number(record.noise) > 50.0 ? "#ef4444" : "#10b981";
+
+                            const sw = document.getElementById("sw");
+                            if (record.pressed === true || record.pressed === "true") {
+                                sw.innerText = "PRESSED"; sw.className = "status pressed";
+                            } else {
+                                sw.innerText = "RELEASE"; sw.className = "status release";
+                            }
+                        } catch (e) { console.error(e); }
+                    }
+                });
 
             } catch (e) {
-                console.error("解読エラー詳細:", e);
+                console.error("エラー詳細:", e);
                 document.getElementById("syncText").innerText = "接続エラー";
                 document.getElementById("errMsg").style.display = "block";
                 document.getElementById("errMsg").innerText = "⚠️ エラー: " + e.message;
             }
         });
-
-        function startMqtt(url, user, pass) {
-            const brokerUrl = `wss://${url}:8884/mqtt`;
-            document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
-
-            // 小文字の mqtt.connect で確実に動作します
-            client = mqtt.connect(brokerUrl, { username: user, password: pass });
-
-            client.on('connect', () => {
-                document.getElementById("syncDot").className = "dot online";
-                document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
-                client.subscribe(TOPIC_TELEMETRY);
-            });
-
-            client.on('close', () => {
-                document.getElementById("syncDot").className = "dot";
-                document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
-            });
-
-            client.on('message', (topic, message) => {
-                if (topic === TOPIC_TELEMETRY) {
-                    try {
-                        const record = JSON.parse(message.toString());
-                        document.getElementById("volt").innerText = Number(record.volts).toFixed(3) + " V";
-                        document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
-                        
-                        const noiseEl = document.getElementById("noise");
-                        noiseEl.style.color = Number(record.noise) > 50.0 ? "#ef4444" : "#10b981";
-
-                        const sw = document.getElementById("sw");
-                        if (record.pressed === true || record.pressed === "true") {
-                            sw.innerText = "PRESSED"; sw.className = "status pressed";
-                        } else {
-                            sw.innerText = "RELEASE"; sw.className = "status release";
-                        }
-                    } catch (e) { console.error(e); }
-                }
-            });
-        }
 
         function toggleRemoteLed() {
             ledState = !ledState;
