@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 ANALOG WAVE MONITOR</title>
+    <title>ESP32 TWOWAY CONTROL PANEL</title>
+    
+    <!-- 💡 AIの自動省略を受けないよう、通常のタグ形式で直接記述します -->
+　　<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
         .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
@@ -70,22 +73,13 @@
             <div id="timeText" class="time-display">TIMESTAMP: --:--:--</div>
         </div>
     </div>
+
     <script>
         const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
         const TOPIC_COMMAND   = "esp32_01/industrial/command";   
         let ledState = false; let client = null;
 
-        // 💡 【超重要】AIの自動置換をすり抜けるURL定義
-        const p1 = "ht" + "tps:" + "//" + "un" + "pk" + "g." + "co" + "m/";
-        const p2 = "mq" + "tt" + "/" + "di" + "st" + "/" + "mq" + "tt" + ".m" + "in" + ".j" + "s";
-
-        // ライブラリを動的生成して読み込み
-        const scriptEl = document.createElement('script');
-        scriptEl.src = p1 + p2;
-        document.head.appendChild(scriptEl);
-
-        // ★【核心の修正】ライブラリのダウンロードが「100%完了した瞬間」に接続処理を開始させる
-        scriptEl.onload = () => {
+        window.addEventListener('DOMContentLoaded', () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const encodedData = urlParams.get('key');
@@ -93,7 +87,7 @@
                 const config = JSON.parse(atob(encodedData));
                 if (!config.url || !config.user || !config.pass) throw new Error("データ構造が不正です");
 
-                // 最初にご提示いただいた通りの100%正しいポート「8884」とパス「/mqtt」に戻しました
+                // 💡 【完全復元】元の正常動作していたポートとパス構造に完全同期
                 const brokerUrl = `wss://${config.url}:8884/mqtt`;
                 document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
 
@@ -116,12 +110,12 @@
                             document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
                             document.getElementById("noise").style.color = Number(record.noise) > 50.0 ? "#fbbf24" : "#10b981";
                             
-                            // アナログ電圧値（CH1=黄色、CH2=マゼンタ）の反映
+                            // アナログ入力（CH1=黄色、CH2=マゼンタ）の反映
                             const v1 = Number(record.sw1_v); const v2 = Number(record.sw2_v);
                             document.getElementById("sw1_v").innerText = v1.toFixed(2) + " V";
                             document.getElementById("sw2_v").innerText = v2.toFixed(2) + " V";
                             
-                            // トリガー状態のセーフティグリーンでの明滅表示
+                            // 物理スイッチ連動トリガー（セーフティグリーン明滅）
                             const sw = document.getElementById("sw");
                             if (v1 < 1.0) { sw.innerText = "PRESSED"; sw.className = "status pressed"; }
                             else { sw.innerText = "RELEASE"; sw.className = "status release"; }
@@ -138,7 +132,7 @@
                 document.getElementById("errMsg").style.display = "block";
                 document.getElementById("errMsg").innerText = "⚠️ エラー: " + e.message;
             }
-        };
+        });
 
         function toggleRemoteLed() {
             ledState = !ledState;
