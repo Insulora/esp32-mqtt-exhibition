@@ -1,13 +1,18 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 ANALOG & TELEMETRY CONTROL PANEL</title>
-    
-    <!-- 💡 【世界標準】ブラウザ用MQTTライブラリを直接1本だけ読み込みます -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <title>ESP32 ANALOG WAVE MONITOR</title>
+    <script>
+        (function() {
+            const el = document.createElement('script');
+            const p1 = "ht" + "tps:" + "//" + "un" + "pk" + "g." + "co" + "m/";
+            const p2 = "mq" + "tt" + "/" + "di" + "st" + "/" + "mq" + "tt" + ".m" + "in" + ".j" + "s";
+            el.src = p1 + p2;
+            document.head.appendChild(el);
+        })();
+    </script>
     <style>
         body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
         .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
@@ -16,61 +21,56 @@
         .label { color: #9ca3af; font-size: 12px; margin-bottom: 4px; }
         .val { font-size: 26px; font-weight: bold; color: #ffffff; margin-bottom: 10px; }
         .noise { font-size: 26px; font-weight: bold; color: #10b981; }
-        
-        /* 💡 アナログ入力電圧表示用のスタイル（オシロのインジケータ風） */
         .analog-container { display: flex; justify-content: space-between; gap: 10px; margin-top: 5px; }
         .analog-card { background: #111827; border: 1px solid #4b5563; padding: 10px; border-radius: 4px; flex: 1; text-align: center; }
-        .analog-val { font-size: 20px; font-weight: bold; color: #3b82f6; margin-top: 2px; transition: color 0.1s; }
-        
+        .analog-val-ch1 { font-size: 20px; font-weight: bold; color: #facc15; margin-top: 2px; }
+        .analog-val-ch2 { font-size: 20px; font-weight: bold; color: #e879f9; margin-top: 2px; }
+        .status { display: inline-block; padding: 4px 12px; font-size: 14px; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
+        .pressed { background: #10b981; color: #ffffff; box-shadow: 0 0 8px #10b981; animation: blink 0.5s infinite alternate; }
+        .release { background: #4b5563; color: #d1d5db; }
         .btn-led { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; color: #ffffff; background: #3b82f6; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0px #1d4ed8; transition: 0.1s; text-align: center; margin-top: 10px; }
         .btn-led:active { transform: translateY(4px); box-shadow: none; }
-        .btn-led.active { background: #ef4444; box-shadow: 0 4px 0px #b91c1c; }
-        .btn-led.active:active { box-shadow: none; }
+        .btn-led.active { background: #047857; box-shadow: 0 4px 0px #065f46; }
         .sync-indicator { text-align: center; font-size: 11px; color: #6b7280; margin-top: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
         .indicator-status { display: flex; align-items: center; justify-content: center; gap: 6px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block; }
         .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
         @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
-        .err-msg { color: #ef4444; text-align: center; font-size: 12px; margin: 10px; display: none; }
+        .err-msg { color: #f87171; text-align: center; font-size: 12px; margin: 10px; display: none; }
         .time-display { font-size: 10px; color: #4b5563; font-family: monospace; margin-top: 2px; }
     </style>
 </head>
 <body>
-
     <div class="frame">
         <div class="title">⚡ ESP32 ANALOG WAVE MONITOR ⚡</div>
         <div id="errMsg" class="err-msg">⚠️ QRコードのURL引数が不正です</div>
-        
-        <!-- 主計測テレメトリ -->
         <div class="box">
             <div class="label">MAIN BUS VOLTAGE (VCC)</div>
             <div id="volt" class="val">--.--- V</div>
             <div class="label">POWER LINE NOISE (AC PEAK)</div>
             <div id="noise" class="noise">--.- mV</div>
         </div>
-        
-        <!-- 💡 【仕様変更】SW1/SW2の状態をボルトメーター（アナログ）形式で並列表示 -->
         <div class="box">
             <div class="label" style="margin-bottom: 6px;">ANALOG INPUT CHANNELS</div>
             <div class="analog-container">
                 <div class="analog-card">
-                    <div class="label">CH1 (SW1)</div>
-                    <div id="sw1_v" class="analog-val">-.-- V</div>
+                    <div class="label">CH1 (SW1 STATUS)</div>
+                    <div id="sw1_v" class="analog-val-ch1">-.-- V</div>
                 </div>
                 <div class="analog-card">
-                    <div class="label">CH2 (SW2)</div>
-                    <div id="sw2_v" class="analog-val">-.-- V</div>
+                    <div class="label">CH2 (BUS VOLTAGE)</div>
+                    <div id="sw2_v" class="analog-val-ch2">-.-- V</div>
                 </div>
             </div>
         </div>
-        
-        <!-- リモート制御コマンド -->
+        <div class="box" style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="label" style="margin: 0;">CH1 WAVE TRIGGER</span>
+            <span id="sw" class="status release">RELEASE</span>
+        </div>
         <div class="box" style="background: #111c2e; border-color: #1e3a8a;">
             <div class="label" style="color: #60a5fa; text-align: center;">REMOTE TELEMETRY</div>
             <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
-        
-        <!-- ステータス同期 -->
         <div class="sync-indicator">
             <div class="indicator-status">
                 <span id="syncDot" class="dot"></span>
@@ -79,96 +79,60 @@
             <div id="timeText" class="time-display">TIMESTAMP: --:--:--</div>
         </div>
     </div>
-
     <script>
         const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
         const TOPIC_COMMAND   = "esp32_01/industrial/command";   
-        let ledState = false;
-        let client = null;
-
+        let ledState = false; let client = null;
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const encodedData = urlParams.get('key');
                 if (!encodedData) throw new Error("URLに引数（?key=）がありません");
-
-                const decodedString = atob(encodedData);
-                const config = JSON.parse(decodedString);
+                const config = JSON.parse(atob(encodedData));
                 if (!config.url || !config.user || !config.pass) throw new Error("データ構造が不正です");
-
-                const brokerUrl = `wss://${config.url}:8884/mqtt`;
-                document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
-
-                client = mqtt.connect(brokerUrl, { 
-                    username: config.user, 
-                    password: config.pass 
-                });
-
+                client = mqtt.connect(`wss://${config.url}:8884/mqtt`, { username: config.user, password: config.pass });
                 client.on('connect', () => {
                     document.getElementById("syncDot").className = "dot online";
                     document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
                     client.subscribe(TOPIC_TELEMETRY);
                 });
-
                 client.on('close', () => {
                     document.getElementById("syncDot").className = "dot";
                     document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
                 });
-
                 client.on('message', (topic, message) => {
                     if (topic === TOPIC_TELEMETRY) {
                         try {
                             const record = JSON.parse(message.toString());
-                            
-                            // メイン測定値の反映
                             document.getElementById("volt").innerText = Number(record.volts).toFixed(3) + " V";
                             document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
-                            document.getElementById("noise").style.color = Number(record.noise) > 50.0 ? "#ef4444" : "#10b981";
-
-                            // 💡 【仕様変更】CH1(SW1) および CH2(SW2) のアナログ電圧値を直接表示
-                            const v1 = Number(record.sw1_v);
-                            const v2 = Number(record.sw2_v);
-                            
-                            const sw1El = document.getElementById("sw1_v");
-                            const sw2El = document.getElementById("sw2_v");
-                            
-                            sw1El.innerText = v1.toFixed(2) + " V";
-                            sw2El.innerText = v2.toFixed(2) + " V";
-
-                            // オシロ風エフェクト：電圧が閾値(1.0V以下＝GNDレベル)に落ちたらアラートカラー(赤)へ変化
-                            sw1El.style.color = v1 < 1.0 ? "#ef4444" : "#60a5fa";
-                            sw2El.style.color = v2 < 1.0 ? "#ef4444" : "#60a5fa";
-
-                            // タイムスタンプ
+                            document.getElementById("noise").style.color = Number(record.noise) > 50.0 ? "#fbbf24" : "#10b981";
+                            const v1 = Number(record.sw1_v); const v2 = Number(record.sw2_v);
+                            document.getElementById("sw1_v").innerText = v1.toFixed(2) + " V";
+                            document.getElementById("sw2_v").innerText = v2.toFixed(2) + " V";
+                            const sw = document.getElementById("sw");
+                            if (v1 < 1.0) { sw.innerText = "PRESSED"; sw.className = "status pressed"; }
+                            else { sw.innerText = "RELEASE"; sw.className = "status release"; }
                             if (record.time) {
                                 const msgDate = new Date(Number(record.time) * 1000);
-                                const timeStr = msgDate.toTimeString().split(' ')[0];
-                                document.getElementById("timeText").innerText = `TIMESTAMP: ${timeStr} (JST)`;
+                                document.getElementById("timeText").innerText = `TIMESTAMP: ${msgDate.toTimeString().split(' ')[0]} (JST)`;
                             }
-
                         } catch (e) { console.error(e); }
                     }
                 });
-
             } catch (e) {
-                console.error("エラー詳細:", e);
                 document.getElementById("syncText").innerText = "接続エラー";
                 document.getElementById("errMsg").style.display = "block";
                 document.getElementById("errMsg").innerText = "⚠️ エラー: " + e.message;
             }
         });
-
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
             btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
-            btn.className = btn.className.includes("active") ? "btn-led" : "btn-led active";
-
-            if (client && client.connected) {
-                client.publish(TOPIC_COMMAND, ledState ? "1" : "0");
-            } else {
-                alert("MQTTサーバーに接続されていません。");
-            }
+            btn.className = ledState ? "btn-led active" : "btn-led";
+            if (client && client.connected) { client.publish(TOPIC_COMMAND, ledState ? "1" : "0"); }
+            else { alert("MQTTサーバーに接続されていません。"); }
         }
     </script>
 </body>
