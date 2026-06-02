@@ -1,145 +1,125 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 TWOWAY CONTROL PANEL</title>
-    
-    <!-- 💡 【世界標準】ブラウザ用MQTTライブラリを直接1本だけ読み込みます -->
-　　<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>ESP32 INDUSTRIAL PANEL</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
-        .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 400px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
-        .title { color: #10b981; font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #1f2937; padding-bottom: 5px; text-align: center; }
-        .box { background: #1f2937; border: 1px solid #374151; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
-        .label { color: #9ca3af; font-size: 12px; margin-bottom: 4px; }
-        .val { font-size: 26px; font-weight: bold; color: #ffffff; margin-bottom: 10px; }
-        .noise { font-size: 26px; font-weight: bold; color: #10b981; }
-        .status { display: inline-block; padding: 4px 12px; font-size: 14px; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
-        .pressed { background: #ef4444; color: #ffffff; animation: blink 0.5s infinite alternate; }
-        .release { background: #4b5563; color: #d1d5db; }
-        .btn-led { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; color: #ffffff; background: #3b82f6; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0px #1d4ed8; transition: 0.1s; text-align: center; margin-top: 10px; }
-        .btn-led:active { transform: translateY(4px); box-shadow: none; }
-        .btn-led.active { background: #ef4444; box-shadow: 0 4px 0px #b91c1c; }
-        .btn-led.active:active { box-shadow: none; }
-        .sync-indicator { text-align: center; font-size: 11px; color: #6b7280; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block; }
-        .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
-        @keyframes blink { from { opacity: 1; } to { opacity: 0.6; } }
-        .err-msg { color: #ef4444; text-align: center; font-size: 12px; margin: 10px; display: none; }
+        body{background:#0b0f19;color:#f3f4f6;font-family:'Courier New',monospace;padding:15px;margin:0;}
+        .frame{border:2px solid #10b981;padding:15px;border-radius:8px;max-width:420px;margin:10px auto;background:#111827;box-shadow:0 4px 6px -1px rgba(0,0,0,0.5);}
+        .title{color:#10b981;font-size:18px;font-weight:bold;margin-bottom:15px;border-bottom:1px solid #1f2937;padding-bottom:5px;text-align:center;}
+        .grid-3ch{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px;}
+        .ch-card{background:#111827;border:1px solid #4b5563;padding:10px;border-radius:6px;text-align:center;}
+        .ch-title{font-size:11px;font-weight:bold;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #1f2937;}
+        .c1{color:#f59e0b;border-color:#f59e0b;}.c2{color:#06b6d4;border-color:#06b6d4;}.c3{color:#d946ef;border-color:#d946ef;}
+        .label{color:#9ca3af;font-size:11px;margin-bottom:2px;}
+        .val-small{font-size:16px;font-weight:bold;color:#ffffff;margin-bottom:8px;}
+        .status-huge{display:block;width:85%;margin:0 auto;padding:6px 0;font-size:13px;font-weight:bold;border-radius:4px;text-transform:uppercase;text-align:center;}
+        .status-huge.pressed{background:#10b981;color:#ffffff;animation:pulse 0.6s infinite alternate;}
+        .status-huge.release{background:#374151;color:#9ca3af;}
+        .noise-box{display:flex;justify-content:space-between;align-items:center;background:#1f2937;padding:12px;border-radius:6px;margin-bottom:15px;border:1px solid #374151;}
+        .noise-val{font-size:20px;font-weight:bold;color:#10b981;}
+        .remote-box{background:#111c2e;border:1px solid #1e3a8a;padding:15px;border-radius:6px;}
+        .btn-led{width:100%;padding:14px;font-size:16px;font-weight:bold;color:#ffffff;background:#3b82f6;border:none;border-radius:6px;cursor:pointer;box-shadow:0 4px 0px #1d4ed8;transition:0.1s;text-align:center;}
+        .btn-led:active{transform:translateY(4px);box-shadow:none;}
+        .btn-led.active{background:#10b981;box-shadow:0 4px 0px #059669;}
+        .sync-indicator{text-align:center;font-size:11px;color:#6b7280;margin-top:15px;display:flex;align-items:center;justify-content:center;gap:6px;}
+        .dot{width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;}
+        .dot.online{background:#10b981;box-shadow:0 0 8px #10b981;}
+        @keyframes pulse{from{transform:scale(1);}to{transform:scale(1.04);}}
+        .err-msg{color:#f59e0b;text-align:center;font-size:12px;margin:10px;display:none;}
     </style>
 </head>
 <body>
-
     <div class="frame">
-        <div class="title">⚡ ESP32 INDUSTRIAL LIVE ⚡</div>
-        <div id="errMsg" class="err-msg">⚠️ QRコードのURL引数が不正です</div>
-        
-        <div class="box">
-            <div class="label">EXTERNAL VOLTAGE</div>
-            <div id="volt" class="val">--.--- V</div>
-            <div class="label">POWER LINE NOISE</div>
-            <div id="noise" class="noise">--.- mV</div>
+        <div class="title">⚡ ESP32 3CH LIVE STREAM ⚡</div>
+        <div id="errMsg" class="err-msg"></div>
+        <div class="grid-3ch">
+            <div class="ch-card" style="border-color:#f59e0b;">
+                <div class="ch-title c1">🔵 CH1: SW1</div><div class="label">VOLTAGE</div>
+                <div id="sw1V" class="val-small">--.-- V</div><span id="sw1Stat" class="status-huge release">RELEASE</span>
+            </div>
+            <div class="ch-card" style="border-color:#06b6d4;">
+                <div class="ch-title c2">🟢 CH2: SW2</div><div class="label">VOLTAGE</div>
+                <div id="sw2V" class="val-small">--.-- V</div><span id="sw2Stat" class="status-huge release">RELEASE</span>
+            </div>
+            <div class="ch-card" style="border-color:#d946ef;">
+                <div class="ch-title c3">📶 CH3: RSSI</div><div class="label">SIGNAL</div>
+                <div id="rssiDb" class="val-small" style="margin-bottom:16px;">--- dBm</div><span id="rssiStat" class="status-huge release" style="font-size:11px;">LIVE</span>
+            </div>
         </div>
-        <div class="box" style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="label" style="margin: 0;">BASE SWITCH(SW2)</span>
-            <span id="sw" class="status release">OFFLINE</span>
+        <div class="noise-box">
+            <div><div class="label" style="text-align:left;">POWER LINE SPK/NOISE</div></div>
+            <div id="noise" class="noise-val">--.- mV</div>
         </div>
-        <div class="box" style="background: #111c2e; border-color: #1e3a8a;">
-            <div class="label" style="color: #60a5fa; text-align: center;">REMOTE TELEMETRY</div>
+        <div class="remote-box">
+            <div class="label" style="color:#60a5fa;text-align:center;margin-bottom:8px;">REMOTE COMMAND TEST</div>
             <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
-        <div class="sync-indicator">
-            <span id="syncDot" class="dot"></span>
-            <span id="syncText">QRコードをスキャン中...</span>
-        </div>
+        <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
-
     <script>
-        const TOPIC_TELEMETRY = "esp32_01/industrial/telemetry"; 
-        const TOPIC_COMMAND   = "esp32_01/industrial/command";   
-        let ledState = false;
-        let client = null;
-
-        window.addEventListener('DOMContentLoaded', () => {
-            try {
-                // 1. URLから「?key=xxxx」を取得
-                const urlParams = new URLSearchParams(window.location.search);
-                const encodedData = urlParams.get('key');
-
-                if (!encodedData) {
-                    throw new Error("URLに引数（?key=）がありません");
-                }
-
-                // 2. Base64文字列をデコード
-                const decodedString = atob(encodedData);
-                const config = JSON.parse(decodedString);
-
-                if (!config.url || !config.user || !config.pass) {
-                    throw new Error("データ構造が不正です");
-                }
-
-                // 3. MQTT接続を開始
-                const brokerUrl = `wss://${config.url}:8884/mqtt`;
-                document.getElementById("syncText").innerText = "CONNECTING TO HIVEMQ CLOUD...⚙️";
-
-                // ライブラリの「mqtt」オブジェクトをそのまま使用
-                client = mqtt.connect(brokerUrl, { 
-                    username: config.user, 
-                    password: config.pass 
+        const T_TEL="esp32_01/industrial/telemetry",T_CMD="esp32_01/industrial/command";
+        let ledState=false,client=null;
+        window.addEventListener('DOMContentLoaded',()=>{
+            try{
+                const p=new URLSearchParams(window.location.search),k=p.get('key');
+                if(!k)throw new Error("URL引数(?key=)無し");
+                const config=JSON.parse(atob(k));
+                if(!config.url||!config.user||!config.pass)throw new Error("データ不正");
+                document.getElementById("syncText").innerText="CONNECTING TO HIVEMQ...⚙️";
+                client=mqtt.connect(`wss://${config.url}:8884/mqtt`,{username:config.user,password:config.pass});
+                client.on('connect',()=>{
+                    document.getElementById("syncDot").className="dot online";
+                    document.getElementById("syncText").innerText="CONNECTED TO HIVEMQ CLOUD";
+                    client.subscribe(T_TEL);
                 });
-
-                client.on('connect', () => {
-                    document.getElementById("syncDot").className = "dot online";
-                    document.getElementById("syncText").innerText = "HIVEMQ CLOUD LIVE CONNECTED";
-                    client.subscribe(TOPIC_TELEMETRY);
+                client.on('close',()=>{
+                    document.getElementById("syncDot").className="dot";
+                    document.getElementById("syncText").innerText="MQTT DISCONNECTED";
                 });
-
-                client.on('close', () => {
-                    document.getElementById("syncDot").className = "dot";
-                    document.getElementById("syncText").innerText = "MQTT DISCONNECTED";
-                });
-
-                client.on('message', (topic, message) => {
-                    if (topic === TOPIC_TELEMETRY) {
-                        try {
-                            const record = JSON.parse(message.toString());
-                            document.getElementById("volt").innerText = Number(record.volts).toFixed(3) + " V";
-                            document.getElementById("noise").innerText = Number(record.noise).toFixed(1) + " mV";
-                            
-                            const noiseEl = document.getElementById("noise");
-                            noiseEl.style.color = Number(record.noise) > 50.0 ? "#ef4444" : "#10b981";
-
-                            const sw = document.getElementById("sw");
-                            if (record.pressed === true || record.pressed === "true") {
-                                sw.innerText = "PRESSED"; sw.className = "status pressed";
-                            } else {
-                                sw.innerText = "RELEASE"; sw.className = "status release";
+                client.on('message',(t,m)=>{
+                    if(t===T_TEL){
+                        try{
+                            const r=JSON.parse(m.toString());
+                            document.getElementById("sw1V").innerText=Number(r.sw1_v).toFixed(2)+" V";
+                            document.getElementById("sw2V").innerText=Number(r.sw2_v).toFixed(2)+" V";
+                            const rStat=document.getElementById("rssiStat"),rDb=document.getElementById("rssiDb");
+                            if(Number(r.rssi_db)===0){
+                                rDb.innerText="LAN (有線)";rStat.className="status-huge pressed";
+                                rStat.style.background="#3b82f6";rStat.style.boxShadow="none";
+                            }else{
+                                rDb.innerText=Number(r.rssi_db)+" dBm";rStat.innerText="SIGNAL OK";
+                                rStat.className="status-huge pressed";rStat.style.background="#10b981";
                             }
-                        } catch (e) { console.error(e); }
+                            document.getElementById("noise").innerText=Number(r.noise_mv).toFixed(1)+" mV";
+                            document.getElementById("noise").style.color=Number(r.noise_mv)>50.0?"#f59e0b":"#10b981";
+                            const s1=document.getElementById("sw1Stat");s1.innerText=r.sw1_stat;
+                            if(r.sw1_stat==="PUSH"){
+                                s1.className="status-huge pressed";s1.style.background="#f59e0b";s1.style.boxShadow="0 0 10px #f59e0b";
+                            }else{
+                                s1.className="status-huge release";s1.style.background="#374151";s1.style.boxShadow="none";
+                            }
+                            const s2=document.getElementById("sw2Stat");s2.innerText=r.sw2_stat;
+                            if(r.sw2_stat==="PUSH"){
+                                s2.className="status-huge pressed";s2.style.background="#06b6d4";s2.style.boxShadow="0 0 10px #06b6d4";
+                            }else{
+                                s2.className="status-huge release";s2.style.background="#374151";s2.style.boxShadow="none";
+                            }
+                        }catch(e){console.error(e);}
                     }
                 });
-
-            } catch (e) {
-                console.error("エラー詳細:", e);
-                document.getElementById("syncText").innerText = "接続エラー";
-                document.getElementById("errMsg").style.display = "block";
-                document.getElementById("errMsg").innerText = "⚠️ エラー: " + e.message;
+            }catch(e){
+                document.getElementById("syncText").innerText="接続エラー";
+                const err=document.getElementById("errMsg");err.style.display="block";err.innerText="⚠️ エラー: "+e.message;
             }
         });
-
-        function toggleRemoteLed() {
-            ledState = !ledState;
-            const btn = document.getElementById("ledBtn");
-            btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
-            btn.className = btn.className.includes("active") ? "btn-led" : "btn-led active";
-
-            if (client && client.connected) {
-                client.publish(TOPIC_COMMAND, ledState ? "1" : "0");
-            } else {
-                alert("MQTTサーバーに接続されていません。");
-            }
+        function toggleRemoteLed(){
+            ledState=!ledState;const btn=document.getElementById("ledBtn");
+            btn.innerText=ledState?"SEND: LED OFF":"SEND: LED ON";
+            btn.className=btn.className.includes("active")?"btn-led":"btn-led active";
+            if(client&&client.connected){client.publish(T_CMD,ledState?"1" : "0");}
+            else{alert("MQTTサーバーに接続されていません。");}
         }
     </script>
 </body>
