@@ -1,3 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>ESP32 INDUSTRIAL PANEL</title>
+    <script src="https://unpkg.com"></script>
+    <style>
+        body{background:#0b0f19;color:#f3f4f6;font-family:'Courier New',monospace;padding:15px;margin:0;}
+        .frame{border:2px solid #10b981;padding:15px;border-radius:8px;max-width:420px;margin:10px auto;background:#111827;box-shadow:0 4px 6px -1px rgba(0,0,0,0.5);}
+        .title{color:#10b981;font-size:18px;font-weight:bold;margin-bottom:15px;border-bottom:1px solid #1f2937;padding-bottom:5px;text-align:center;}
+        .grid-3ch{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px;}
+        .ch-card{background:#111827;border:1px solid #4b5563;padding:10px;border-radius:6px;text-align:center;}
+        .ch-title{font-size:11px;font-weight:bold;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #1f2937;}
+        .c1{color:#f59e0b;border-color:#f59e0b;}.c2{color:#06b6d4;border-color:#06b6d4;}.c3{color:#d946ef;border-color:#d946ef;}
+        .label{color:#9ca3af;font-size:11px;margin-bottom:2px;}
+        .val-small{font-size:16px;font-weight:bold;color:#ffffff;margin-bottom:8px;}
+        .status-huge{display:block;width:85%;margin:0 auto;padding:6px 0;font-size:13px;font-weight:bold;border-radius:4px;text-transform:uppercase;text-align:center;}
+        .status-huge.pressed{background:#10b981;color:#ffffff;animation:pulse 0.6s infinite alternate;}
+        .status-huge.release{background:#374151;color:#9ca3af;}
+        .noise-box{display:flex;justify-content:space-between;align-items:center;background:#1f2937;padding:12px;border-radius:6px;margin-bottom:15px;border:1px solid #374151;}
+        .noise-val{font-size:20px;font-weight:bold;color:#10b981;}
+        .remote-box{background:#111c2e;border:1px solid #1e3a8a;padding:15px;border-radius:6px;}
+        .btn-led{width:100%;padding:14px;font-size:16px;font-weight:bold;color:#ffffff;background:#3b82f6;border:none;border-radius:6px;cursor:pointer;box-shadow:0 4px 0px #1d4ed8;transition:0.1s;text-align:center;}
+        .btn-led:active{transform:translateY(4px);box-shadow:none;}
+        .btn-led.active{background:#10b981;box-shadow:0 4px 0px #059669;}
+        .sync-indicator{text-align:center;font-size:11px;color:#6b7280;margin-top:15px;display:flex;align-items:center;justify-content:center;gap:6px;}
+        .dot{width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;}
+        .dot.online{background:#10b981;box-shadow:0 0 8px #10b981;}
+        @keyframes pulse{from{transform:scale(1);}to{transform:scale(1.04);}}
+        .err-msg{color:#f59e0b;text-align:center;font-size:12px;margin:10px;display:none;}
+    </style>
+</head>
 <body>
     <div class="frame">
         <div class="title">⚡ ESP32 3CH LIVE STREAM ⚡</div>
@@ -61,7 +93,7 @@
                                 rStat.className="status-huge pressed";rStat.style.background="#10b981";
                             }
                             
-                            // 2. アナログ値（LINE MONITOR）の処理（旧noise）
+                            // 2. アナログ値（LINE MONITOR）の処理（旧noise_mv → sensor_mvに変更）
                             document.getElementById("noise").innerText=Number(r.sensor_mv).toFixed(1)+" mV";
                             document.getElementById("noise").style.color=Number(r.sensor_mv)>50.0?"#f59e0b":"#10b981";
                             
@@ -97,3 +129,4 @@
         }
     </script>
 </body>
+</html>
