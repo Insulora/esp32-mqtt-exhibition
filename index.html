@@ -61,86 +61,125 @@
         </div>
         <div class="db-box">
             <div class="db-title">🛢️ SUPABASE CLOUD ARCHIVE (LATEST 3)</div>
-            <div id="dbLogs"><div style="text-align:center;font-size:10px;color:#4b5563;">ログを読み込み中...</div></div>
+            <div id="dbLogs"><div style="text-align:center;font-size:10px;color:#4b5563;">待機中...</div></div>
         </div>
         <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
     <script>
         const T_TEL="esp32_01/industrial/telemetry",T_CMD="esp32_01/industrial/command";
         let ledState=false,client=null,globalConfig=null;
+        
+        // 💡 状態テキストを一括で更新するための便利関数
+        function updateStatusText(msg) {
+            document.getElementById("syncText").innerText = msg;
+        }
+
         window.addEventListener('DOMContentLoaded',()=>{
             try{
+                updateStatusText("URL引数チェック中...🔍");
                 const p=new URLSearchParams(window.location.search),k=p.get('key');
                 if(!k)throw new Error("URL引数(?key=)無し");
                 globalConfig=JSON.parse(atob(k));
                 if(!globalConfig.url||!globalConfig.user||!globalConfig.pass)throw new Error("データ不正: 設定不足");
-                document.getElementById("syncText").innerText="CONNECTING TO EMQX CLOUD...⚙️";
                 
-client=mqtt.connect(`wss://${globalConfig.url}:8084/mqtt`,{
-    protocol: 'wss',
-    username:globalConfig.user,password:globalConfig.pass,
-    clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
-    protocolId:'MQIsdp',protocolVersion:3,connectTimeout:5000,clean:true,rejectUnauthorized:false
-});
-                client.on('connect',()=>{
-                    document.getElementById("syncDot").className="dot online";
-                    document.getElementById("syncText").innerText="CONNECTED TO EMQX CLOUD";
-                    client.subscribe(T_TEL);fetchSupabaseLogs();setInterval(fetchSupabaseLogs,10000);
-                });
-                client.on('close',()=>{
-                    document.getElementById("syncDot").className="dot";
-                    document.getElementById("syncText").innerText="MQTT DISCONNECTED";
-                });
-                client.on('message',(t,m)=>{
-                    if(t===T_TEL){
-                        try{
-                            const r=JSON.parse(m.toString()),rStat=document.getElementById("rssiStat"),rDb=document.getElementById("rssiDb");
-                            if(Number(r.rssi_db)===0){
-                                rDb.innerText="LAN (有線)";rStat.innerText="ETH LIVE";rStat.className="status-huge pressed";
-                                rStat.style.background="#3b82f6";rStat.style.boxShadow="none";
-                            }else{
-                                rDb.innerText=Number(r.rssi_db)+" dBm";rStat.innerText="SIGNAL OK";
-                                rStat.className="status-huge pressed";rStat.style.background="#10b981";
-                            }
-                            document.getElementById("noise").innerText=Number(r.noise_mv).toFixed(1)+" mV";
-                            document.getElementById("noise").style.color=Number(r.noise_mv)>50.0?"#f59e0b":"#10b981";
-                            const s1=document.getElementById("sw1Stat");s1.innerText=r.sw1_stat;
-                            if(r.sw1_stat==="PUSH"){
-                                s1.className="status-huge pressed";s1.style.background="#f59e0b";s1.style.boxShadow="0 0 10px #f59e0b";
-                            }else{
-                                s1.className="status-huge release";s1.style.background="#374151";s1.style.boxShadow="none";
-                            }
-                            const s2=document.getElementById("sw2Stat");s2.innerText=r.sw2_stat;
-                            if(r.sw2_stat==="PUSH"){
-                                s2.className="status-huge pressed";s2.style.background="#06b6d4";s2.style.boxShadow="0 0 10px #06b6d4";
-                            }else{
-                                s2.className="status-huge release";s2.style.background="#374151";s2.style.boxShadow="none";
-                            }
-                        }catch(e){console.error(e);}
-                    }
-                });
+                // ⭕ 進行状態表示を組み込んだ先回りフェッチの実行
+                fetchSupabaseLogs();
+
             }catch(e){
-                document.getElementById("syncText").innerText="接続エラー";
+                updateStatusText("初期化エラー❌");
                 const err=document.getElementById("errMsg");err.style.display="block";err.innerText="⚠️ エラー: "+e.message;
             }
         });
+
+        // 🛢️ Supabase通信関数（ここに進捗ステータス表示を結合）
         function fetchSupabaseLogs(){
             if(!globalConfig||!globalConfig.sb_url||!globalConfig.sb_key)return;
+            
+            // 💡 状態表示：Supabaseへのフェッチ開始
+            updateStatusText("1/2: SUPABASEから過去ログを読込中...📥");
+            
             const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
             fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
             .then(res=>{if(!res.ok)throw new Error("Fetch failed");return res.json();})
             .then(data=>{
                 const container=document.getElementById("dbLogs");
-                if(data.length===0){container.innerHTML=`<div style="text-align:center;font-size:10px;color:#4b5563;">レコード無し</div>`;return;}
-                container.innerHTML=data.map(row=>{
-                    const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
-                    return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>EDGE(SW1/SW2):[<span class="log-edge">${row.sw1_edge}</span>/${row.sw2_edge}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
-                }).join('');
-            }).catch(err=>{
+                if(data.length===0){container.innerHTML=`<div style="text-align:center;font-size:10px;color:#4b5563;">レコード無し</div>`;}
+                else {
+                    container.innerHTML=data.map(row=>{
+                        const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
+                        return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
+                    }).join('');
+                }
+                
+                // 💡 Supabaseが成功したら、間髪入れずに次の「EMQX接続」フェーズへバトンタッチ！
+                startMqttConnection();
+            })
+            .catch(err=>{
                 console.error("Supabase Log Error:",err);
                 document.getElementById("dbLogs").innerHTML=`<div style="text-align:center;font-size:10px;color:#ef4444;">データ取得エラー</div>`;
+                updateStatusText("SUPABASE読込失敗（EMQX接続をスキップ）❌");
             });
         }
+
+        // 🔌 EMQX接続関数（Supabase完了後に発動する独立ルート）
+        function startMqttConnection() {
+            // 💡 状態表示：EMQXへのアクセス開始
+            updateStatusText("2/2: EMQX CLOUDへログイン中...⚙️");
+            
+            client=mqtt.connect(`wss://${globalConfig.url}:8084/mqtt`,{
+                username:globalConfig.user,password:globalConfig.pass,
+                clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
+                protocolId:'MQIsdp',protocolVersion:3,connectTimeout:5000,clean:true,rejectUnauthorized:false
+            });
+            client.on('connect',()=>{
+                document.getElementById("syncDot").className="dot online";
+                // 💡 状態表示：完全開通（大成功）
+                updateStatusText("ALL SYSTEMS ONLINE / 完全開通🟢");
+                client.subscribe(T_TEL);
+                
+                // 開通後は、10秒周期の自動更新タイマーだけをひっそり裏で回す（文字は書き換えない）
+                setInterval(silentFetchSupabaseLogs, 10000);
+            });
+            client.on('close',()=>{
+                document.getElementById("syncDot").className="dot";
+                updateStatusText("MQTT DISCONNECTED（切断状態）🛑");
+            });
+            client.on('message',(t,m)=>{
+                if(t===T_TEL){
+                    try {
+                        const r=JSON.parse(m.toString()),rStat=document.getElementById("rssiStat"),rDb=document.getElementById("rssiDb");
+                        if(Number(r.rssi_db)===0){
+                            rDb.innerText="LAN (有線)";rStat.innerText="ETH LIVE";rStat.className="status-huge pressed";rStat.style.background="#3b82f6";rStat.style.boxShadow="none";
+                        }else{
+                            rDb.innerText=Number(r.rssi_db)+" dBm";rStat.innerText="SIGNAL OK";rStat.className="status-huge pressed";rStat.style.background="#10b981";
+                        }
+                        document.getElementById("noise").innerText=Number(r.noise_mv).toFixed(1)+" mV";
+                        document.getElementById("noise").style.color=Number(r.noise_mv)>50.0?"#f59e0b":"#10b981";
+                        const s1=document.getElementById("sw1Stat");s1.innerText=r.sw1_stat;
+                        if(r.sw1_stat==="PUSH"){s1.className="status-huge pressed";s1.style.background="#f59e0b";s1.style.boxShadow="0 0 10px #f59e0b";}
+                        else{s1.className="status-huge release";s1.style.background="#374151";s1.style.boxShadow="none";}
+                        const s2=document.getElementById("sw2Stat");s2.innerText=r.sw2_stat;
+                        if(r.sw2_stat==="PUSH"){s2.className="status-huge pressed";s2.style.background="#06b6d4";s2.style.boxShadow="0 0 10px #06b6d4";}
+                        else{s2.className="status-huge release";s2.style.background="#374151";s2.style.boxShadow="none";}
+                    }catch(e){console.error(e);}
+                }
+            });
+        }
+
+        // 開通後の定期リフレッシュ用（文字をガチャガチャ変えずに裏でデータを更新する専用関数）
+        function silentFetchSupabaseLogs(){
+            const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
+            fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
+            .then(res=>{if(res.ok) return res.json();})
+            .then(data=>{
+                if(!data || data.length===0) return;
+                document.getElementById("dbLogs").innerHTML=data.map(row=>{
+                    const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
+                    return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
+                }).join('');
+            }).catch(err=>console.error(err));
+        }
+
         function toggleRemoteLed(){
             ledState=!ledState;const btn=document.getElementById("ledBtn");
             btn.innerText=ledState?"SEND: LED OFF":"SEND: LED ON";btn.className=btn.className.includes("active")?"btn-led":"btn-led active";
