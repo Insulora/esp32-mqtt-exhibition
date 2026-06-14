@@ -38,10 +38,12 @@
         .debug-alert{color:#f87171;font-weight:bold;}
     </style>
 </head>
+
 <body>
     <div class="frame">
-        <div class="title">⚡ ESP32 3CH LIVE STREAM 3 ⚡</div>
+        <div class="title">⚡ ESP32 3CH LIVE STREAM ⚡</div>
         <div id="errMsg" class="err-msg"></div>
+        
         <div class="grid-3ch">
             <div class="ch-card" style="border-color:#f59e0b;">
                 <div class="ch-title c1">🔵 CH1: SW1</div><div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
@@ -57,81 +59,95 @@
                 <span id="rssiStat" class="status-huge release" style="font-size:10px;">LIVE</span>
             </div>
         </div>
+
         <div class="noise-box">
             <div><div class="label" style="text-align:left;">POWER LINE MONITOR</div></div>
             <div id="noise" class="noise-val">--.- mV</div>
         </div>
+
         <div class="remote-box">
             <div class="label" style="color:#60a5fa;text-align:center;margin-bottom:8px;">REMOTE COMMAND TEST</div>
             <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
+
         <div class="db-box">
             <div class="db-title">🛢️ SUPABASE CLOUD ARCHIVE (LATEST 3)</div>
             <div id="dbLogs"><div style="text-align:center;font-size:10px;color:#4b5563;">待機中...</div></div>
         </div>
-        <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
+
+        <!-- 🛠️ ログが上書きされずに残る診断画面 -->
+        <div class="debug-panel">
+            <div class="debug-title">🛠️ LIVE SYSTEM DIAGNOSTIC CONSOLE</div>
+            <div id="debugConsole"></div>
+        </div>
+
+        <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">READY</span></div>
     </div>
-    <script>
+     <script>
         const T_TEL="esp32_01/industrial/telemetry",T_CMD="esp32_01/industrial/command";
         let ledState=false,client=null,globalConfig=null;
-        
-        // 💡 EMQX用の接続情報を、上書きされないよう最上位でガッチリ定数固定化
         let l_url="", l_user="", l_pass="";
 
-        function updateStatusText(msg) {
-            document.getElementById("syncText").innerText = msg;
+        // 💡 ログを消さずに、改行して下にどんどん追記していく関数
+        function addDebugLog(msg, isError = false) {
+            const consoleEl = document.getElementById("debugConsole");
+            const colorClass = isError ? 'class="debug-alert"' : '';
+            consoleEl.innerHTML += `<div ${colorClass}>・${msg}</div>`;
         }
+        function updateStatusText(msg) { document.getElementById("syncText").innerText = msg; }
 
         window.addEventListener('DOMContentLoaded',()=>{
             try{
-                updateStatusText("URL引数チェック中...🔍");
+                addDebugLog("URL引数の解析を開始します...🔍");
                 const p=new URLSearchParams(window.location.search),k=p.get('key');
                 if(!k)throw new Error("URL引数(?key=)無し");
                 globalConfig=JSON.parse(atob(k));
                 if(!globalConfig.url||!globalConfig.user||!globalConfig.pass)throw new Error("データ不正: 設定不足");
                 
-                // 💡 解読直後のピュアな瞬間に、EMQXの情報を専用メモリへ隔離・ホールド！
-                l_url = globalConfig.url;
-                l_user = globalConfig.user;
-                l_pass = globalConfig.pass;
-
+                l_url = globalConfig.url; l_user = globalConfig.user; l_pass = globalConfig.pass;
+                addDebugLog(`Base64解読成功（宛先: ${l_url}）`);
                 fetchSupabaseLogs();
             }catch(e){
-                updateStatusText("初期化エラー❌");
+                addDebugLog("初期化エラー: " + e.message, true);
                 const err=document.getElementById("errMsg");err.style.display="block";err.innerText="⚠️ エラー: "+e.message;
             }
         });
 
         function fetchSupabaseLogs(){
-            if(!globalConfig||!globalConfig.sb_url||!globalConfig.sb_key)return;
-            updateStatusText("1/2: SUPABASEから過去ログを読込中...📥");
+            if(!globalConfig||!globalConfig.sb_url||!globalConfig.sb_key){
+                addDebugLog("Supabase情報がURL引数に無いためスキップ", true);
+                startMqttConnection(); return;
+            }
+            addDebugLog("【STEP1】SUPABASEから過去ログの読み込みを開始...📥");
             const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
             fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
-            .then(res=>{if(!res.ok)throw new Error("Fetch failed");return res.json();})
+            .then(res=>{if(!res.ok)throw new Error("HTTP " + res.status);return res.json();})
             .then(data=>{
-                const container=document.getElementById("dbLogs");
-                if(data.length===0){container.innerHTML=`<div style="text-align:center;font-size:10px;color:#4b5563;">レコード無し</div>`;}
-                else {
-                    container.innerHTML=data.map(row=>{
-                        const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
-                        return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
-                    }).join('');
-                }
-                // Supabase読み込み完了後、確実にMQTT接続へ移行
+                renderLogsToTable(data);
+                addDebugLog("<span style='color:#10b981;'>→ SUPABASE過去ログの取得に成功しました。</span>");
                 startMqttConnection();
             })
             .catch(err=>{
                 console.error(err);
                 document.getElementById("dbLogs").innerHTML=`<div style="text-align:center;font-size:10px;color:#ef4444;">データ取得エラー</div>`;
-                updateStatusText("SUPABASE読込失敗❌");
+                addDebugLog("→ SUPABASE通信失敗: " + err.message, true);
+                startMqttConnection();
             });
         }
 
+        function renderLogsToTable(data) {
+            const container=document.getElementById("dbLogs");
+            if(!data || data.length===0){container.innerHTML=`<div style="text-align:center;font-size:10px;color:#4b5563;">レコード無し</div>`;return;}
+            container.innerHTML=data.map(row=>{
+                const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
+                return `<div class="log-item">[時刻] <span class="log-time">${t}</span><br>[端末] MAC:${row.mac}<br>[状態] SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>[計測] ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
+            }).join('');
+        }
+
         function startMqttConnection() {
-            updateStatusText("2/2: EMQX CLOUDへログイン中...⚙️");
+            addDebugLog("【STEP2】EMQX CLOUD（ポート8084）へのログインを開始...⚙️");
+            document.getElementById("syncText").innerText = "CONNECTING...";
             
-            // 💡 隔離しておいた本物の定数（l_url, l_user, l_pass）を使い、
-            // 以前100%接続に成功していた「ポート8084・パスなし」の原型ルートに完全固定で突入！
             client=mqtt.connect(`wss://${l_url}:8084/mqtt`,{
                 username:l_user,password:l_pass,
                 clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
@@ -139,13 +155,16 @@
             });
             client.on('connect',()=>{
                 document.getElementById("syncDot").className="dot online";
-                updateStatusText("ALL SYSTEMS ONLINE / 完全開通🟢");
-                client.subscribe(T_TEL);
-                setInterval(silentFetchSupabaseLogs,10000);
+                document.getElementById("syncText").innerText = "CONNECTED";
+                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！ALL SYSTEMS ONLINE 🟢</span>");
+                client.subscribe(T_TEL);setInterval(silentFetchSupabaseLogs,10000);
             });
             client.on('close',()=>{
                 document.getElementById("syncDot").className="dot";
-                updateStatusText("MQTT DISCONNECTED（切断状態）🛑");
+                document.getElementById("syncText").innerText = "DISCONNECTED";
+            });
+            client.on('error',(err)=>{
+                addDebugLog("→ EMQX接続エラー発生: " + (err.message || "拒否(failed)"), true);
             });
             client.on('message',(t,m)=>{
                 if(t===T_TEL){
@@ -173,13 +192,7 @@
             const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
             fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
             .then(res=>{if(res.ok) return res.json();})
-            .then(data=>{
-                if(!data || data.length===0) return;
-                document.getElementById("dbLogs").innerHTML=data.map(row=>{
-                    const t=new Date(row.created_at).toLocaleTimeString('ja-JP',{hour12:false});
-                    return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
-                }).join('');
-            }).catch(err=>console.error(err));
+            .then(data=>renderLogsToTable(data)).catch(err=>console.error(err));
         }
 
         function toggleRemoteLed(){
@@ -189,5 +202,4 @@
         }
     </script>
 </body>
-</html>
 </html>
