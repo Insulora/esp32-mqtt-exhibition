@@ -34,7 +34,7 @@
 </head>
 <body>
     <div class="frame">
-        <div class="title">⚡ ESP32 3CH LIVE STREAM 3⚡</div>
+        <div class="title">⚡ ESP32 3CH LIVE STREAM 3 ⚡</div>
         <div id="errMsg" class="err-msg"></div>
         <div class="grid-3ch">
             <div class="ch-card" style="border-color:#f59e0b;">
@@ -69,7 +69,9 @@
         const T_TEL="esp32_01/industrial/telemetry",T_CMD="esp32_01/industrial/command";
         let ledState=false,client=null,globalConfig=null;
         
-        // 💡 状態テキストを一括で更新するための便利関数
+        // 💡 EMQX用の接続情報を、上書きされないよう最上位でガッチリ定数固定化
+        let l_url="", l_user="", l_pass="";
+
         function updateStatusText(msg) {
             document.getElementById("syncText").innerText = msg;
         }
@@ -82,22 +84,21 @@
                 globalConfig=JSON.parse(atob(k));
                 if(!globalConfig.url||!globalConfig.user||!globalConfig.pass)throw new Error("データ不正: 設定不足");
                 
-                // ⭕ 進行状態表示を組み込んだ先回りフェッチの実行
-                fetchSupabaseLogs();
+                // 💡 解読直後のピュアな瞬間に、EMQXの情報を専用メモリへ隔離・ホールド！
+                l_url = globalConfig.url;
+                l_user = globalConfig.user;
+                l_pass = globalConfig.pass;
 
+                fetchSupabaseLogs();
             }catch(e){
                 updateStatusText("初期化エラー❌");
                 const err=document.getElementById("errMsg");err.style.display="block";err.innerText="⚠️ エラー: "+e.message;
             }
         });
 
-        // 🛢️ Supabase通信関数（ここに進捗ステータス表示を結合）
         function fetchSupabaseLogs(){
             if(!globalConfig||!globalConfig.sb_url||!globalConfig.sb_key)return;
-            
-            // 💡 状態表示：Supabaseへのフェッチ開始
             updateStatusText("1/2: SUPABASEから過去ログを読込中...📥");
-            
             const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
             fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
             .then(res=>{if(!res.ok)throw new Error("Fetch failed");return res.json();})
@@ -110,37 +111,31 @@
                         return `<div class="log-item">[<span class="log-time">${t}</span>] MAC:${row.mac}<br>SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
                     }).join('');
                 }
-                
-                // 💡 Supabaseが成功したら、間髪入れずに次の「EMQX接続」フェーズへバトンタッチ！
+                // Supabase読み込み完了後、確実にMQTT接続へ移行
                 startMqttConnection();
             })
             .catch(err=>{
-                console.error("Supabase Log Error:",err);
+                console.error(err);
                 document.getElementById("dbLogs").innerHTML=`<div style="text-align:center;font-size:10px;color:#ef4444;">データ取得エラー</div>`;
-                updateStatusText("SUPABASE読込失敗（EMQX接続をスキップ）❌");
+                updateStatusText("SUPABASE読込失敗❌");
             });
         }
 
-        // 🔌 EMQX接続関数（Supabase完了後に発動する独立ルート）
         function startMqttConnection() {
-            // 💡 状態表示：EMQXへのアクセス開始
             updateStatusText("2/2: EMQX CLOUDへログイン中...⚙️");
             
-            client = mqtt.connect(`wss://${globalConfig.url}:443/mqtt?path=/mqtt`, {
-                username: globalConfig.user,
-                password: globalConfig.pass,
-                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
-                connectTimeout: 5000,
-                clean: true
+            // 💡 隔離しておいた本物の定数（l_url, l_user, l_pass）を使い、
+            // 以前100%接続に成功していた「ポート8084・パスなし」の原型ルートに完全固定で突入！
+            client=mqtt.connect(`wss://${l_url}:8084/mqtt`,{
+                username:l_user,password:l_pass,
+                clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
+                protocolId:'MQIsdp',protocolVersion:3,connectTimeout:5000,clean:true,rejectUnauthorized:false
             });
             client.on('connect',()=>{
                 document.getElementById("syncDot").className="dot online";
-                // 💡 状態表示：完全開通（大成功）
                 updateStatusText("ALL SYSTEMS ONLINE / 完全開通🟢");
                 client.subscribe(T_TEL);
-                
-                // 開通後は、10秒周期の自動更新タイマーだけをひっそり裏で回す（文字は書き換えない）
-                setInterval(silentFetchSupabaseLogs, 10000);
+                setInterval(silentFetchSupabaseLogs,10000);
             });
             client.on('close',()=>{
                 document.getElementById("syncDot").className="dot";
@@ -168,7 +163,6 @@
             });
         }
 
-        // 開通後の定期リフレッシュ用（文字をガチャガチャ変えずに裏でデータを更新する専用関数）
         function silentFetchSupabaseLogs(){
             const endpoint=`${globalConfig.sb_url}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`;
             fetch(endpoint,{method:'GET',headers:{'apikey':globalConfig.sb_key,'Content-Type':'application/json'}})
@@ -189,4 +183,5 @@
         }
     </script>
 </body>
+</html>
 </html>
