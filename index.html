@@ -75,13 +75,14 @@
                 if(!globalConfig.url||!globalConfig.user||!globalConfig.pass)throw new Error("データ不正: 設定不足");
                 document.getElementById("syncText").innerText="CONNECTING TO EMQX CLOUD...⚙️";
                 
-client = mqtt.connect(`wss://${globalConfig.url}/mqtt?path=/mqtt`, {
-    username: globalConfig.user,
-    password: globalConfig.pass,
-    clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
-    connectTimeout: 5000,
-    clean: true
-});
+                client = mqtt.connect(`wss://${globalConfig.url}/mqtt?path=/mqtt`, {
+                    protocol: 'wss',
+                    username: globalConfig.user,
+                    password: globalConfig.pass,
+                    clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+                    connectTimeout: 5000,
+                    clean: true
+                });
                 
                 client.on('connect',()=>{
                     document.getElementById("syncDot").className="dot online";
