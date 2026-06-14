@@ -137,10 +137,11 @@
                 addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
                 client.subscribe(T_TEL);
                 
-                // 💡 【非同期バトンリレー】EMQX接続後に安全にSupabaseの過去ログを取得
-                fetchSupabaseLogs();
-                // 💡 10秒ごとに自動更新（ネットワーク衝突を避けるサイレントモード）
-                setInterval(fetchSupabaseLogs, 10000);
+                // ==========================================
+                // 💡 【超重要】ここでSupabaseへバトンを繋ぐ！
+                // ==========================================
+                fetchSupabaseLogs(); 
+                setInterval(fetchSupabaseLogs, 10000); // 10秒自動更新
             });
 
             client.on('close', () => {
