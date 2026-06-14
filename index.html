@@ -181,19 +181,24 @@
                 } catch(e) { console.error(e); }
             });
         }
-       // 💡 日付バグ・配列クラッシュを200%ガードする確定版フェッチ関数
+        // 💡 URLの汚れを無くし、ヘッダーでキャッシュを破砕する400エラー完全パージ版
         async function fetchSupabaseLogs() {
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
-                // 💡 Supabaseの厳格なURL文法に完全適合させた記述（selectとidの順序を最適化）
-                const res = await fetch(`${cleanUrl}/rest/v1/device_status?select=*&id=eq.esp32_01&_ts=${Date.now()}`, {
+                
+                // ⭕ URLから「&_ts=...」を完全削除し、Supabaseの純粋な文法に差し戻す
+                const res = await fetch(`${cleanUrl}/rest/v1/device_status?select=*&id=eq.esp32_01`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
                         "Authorization": `Bearer ${sb_key}`,
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "Accept": "application/json",
+                        // 💡 【超重要】ブラウザに古い記憶（キャッシュ）の使用を100%禁止させる命令
+                        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
                     }
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -201,19 +206,15 @@
                 const dataArray = await res.json();
                 const container = document.getElementById("dbLogs");
                 
-                // 💡 配列が空、または正しく取得できなかった場合の防弾処理
                 if (!dataArray || dataArray.length === 0) {
                     container.innerHTML = `<div style="text-align:center;font-size:10px;color:#6b7280;">デバイスデータ未登録</div>`;
                     return;
                 }
 
-                // ⭕【大正解】配列の「0番目（最初の1行）」を確実に指定してオブジェクト化！
+                // ⭕ 配列の「0番目」をオブジェクトとして安全に展開
                 const status = dataArray[0];
-                
-                // 💡 本物の updated_at から日本時間（JST）の文字列を正確に生成
                 const jstTime = new Date(status.updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
-                // 💡 完全にパースされた本物のクラウドデータを縦型描画
                 container.innerHTML = `
                     <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #10b981; line-height:1.5;">
                         <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime}]</span><br>
@@ -224,6 +225,9 @@
                         HTML_CMD  : <span style="color:#3b82f6;">LED_${status.led_cmd ? 'ON' : 'OFF'}</span>
                     </div>
                 `;
+                
+                // 💡 成功ログをコンソールに流す
+                addDebugLog("<span style='color:#38bdf8;'>→ Supabase最新データの同期に成功！📊</span>");
 
             } catch(e) {
                 console.error("Supabase Fetch Error:", e);
