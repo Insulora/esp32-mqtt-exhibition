@@ -336,17 +336,14 @@ function startMqttConnection() {
     addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
     document.getElementById("syncText").innerText = "CONNECTING...";
     
-    // 💡 現代のMQTT.js(v5)とEMQXに最適化したクリーンな接続オプション
-    client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
-        username: l_user,
-        password: l_pass,
-        clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
-        connectTimeout: 5000,
-        clean: true,
-        rejectUnauthorized: false
-        // ❌ バグの原因となる古いプロトコル指定（protocolId, protocolVersion）を完全排除
-    });
-    
+            client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
+                username: l_user,
+                password: l_pass,
+                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+                connectTimeout: 5000,
+                clean: true,
+                rejectUnauthorized: false
+            });
     client.on('connect', () => {
         document.getElementById("syncDot").className = "dot online";
         document.getElementById("syncText").innerText = "CONNECTED";
