@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" 
-          content="width=device-width,initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 INDUSTRIAL PANEL</title>
-    <!-- 💡 最も安定している公式CDNを完全に1行で配置（スペース無し） -->
+    
+    <!-- 💡 世界中で最も安定している公式CDNライブラリ -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    </script>
+    
     <style>
         body {
             background: #0b0f19;
@@ -20,7 +20,7 @@
             border: 2px solid #10b981;
             padding: 15px;
             border-radius: 8px;
-            max-width: 390px;
+            max-width: 420px;
             margin: 10px auto;
             background: #111827;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
@@ -28,7 +28,7 @@
         }
         .title {
             color: #10b981;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             margin-bottom: 15px;
             border-bottom: 1px solid #1f2937;
@@ -38,18 +38,18 @@
         .grid-3ch {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 15px;
         }
         .ch-card {
             background: #111827;
             border: 1px solid #4b5563;
-            padding: 8px 4px;
+            padding: 10px;
             border-radius: 6px;
             text-align: center;
         }
         .ch-title {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
             margin-bottom: 6px;
             padding-bottom: 4px;
@@ -60,21 +60,21 @@
         .c3 { color: #d946ef; border-color: #d946ef; }
         .label {
             color: #9ca3af;
-            font-size: 10px;
+            font-size: 11px;
             margin-bottom: 2px;
         }
         .val-small {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
             color: #ffffff;
             margin-bottom: 8px;
         }
         .status-huge {
             display: block;
-            width: 90%;
+            width: 85%;
             margin: 0 auto;
             padding: 6px 0;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: bold;
             border-radius: 4px;
             text-transform: uppercase;
@@ -100,21 +100,21 @@
             border: 1px solid #374151;
         }
         .noise-val {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: #10b981;
         }
         .remote-box {
             background: #111c2e;
             border: 1px solid #1e3a8a;
-            padding: 12px;
+            padding: 15px;
             border-radius: 6px;
             margin-bottom: 15px;
         }
         .btn-led {
             width: 100%;
-            padding: 12px;
-            font-size: 14px;
+            padding: 14px;
+            font-size: 16px;
             font-weight: bold;
             color: #ffffff;
             background: #3b82f6;
@@ -135,7 +135,7 @@
         }
         .sync-indicator {
             text-align: center;
-            font-size: 10px;
+            font-size: 11px;
             color: #6b7280;
             margin-top: 15px;
             display: flex;
@@ -156,12 +156,12 @@
         }
         @keyframes pulse {
             from { transform: scale(1); }
-            to { transform: scale(1.02); }
+            to { transform: scale(1.04); }
         }
         .err-msg {
             color: #f59e0b;
             text-align: center;
-            font-size: 11px;
+            font-size: 12px;
             margin: 10px;
             display: none;
         }
@@ -197,7 +197,6 @@
         .log-time { color: #38bdf8; font-weight: bold; }
         .log-edge { color: #f59e0b; font-weight: bold; }
         
-        /* 🚨 追加：Web画面上に「生の接続情報」を改行して暴き出すための警告イエロースタイル */
         .debug-panel {
             background: #1a1505;
             border: 1px solid #eab308;
@@ -226,110 +225,69 @@
             font-weight: bold;
         }
     </style>
-</head>        
+</head>
 <body>
-    <div class="frame">
-        <div class="title">
-            ⚡ ESP32 3CH LIVE STREAM ⚡
-        </div>
+        <div class="frame">
+        <div class="title">⚡ ESP32 3CH LIVE STREAM ⚡</div>
         <div id="errMsg" class="err-msg"></div>
         
         <div class="grid-3ch">
             <div class="ch-card" style="border-color:#f59e0b;">
                 <div class="ch-title c1">🔵 CH1: SW1</div>
-                <div class="label" style="margin-bottom:8px;">
-                    DIGITAL INPUT
-                </div>
-                <span id="sw1Stat" class="status-huge release">
-                    RELEASE
-                </span>
+                <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
+                <span id="sw1Stat" class="status-huge release">RELEASE</span>
             </div>
             <div class="ch-card" style="border-color:#06b6d4;">
                 <div class="ch-title c2">🟢 CH2: SW2</div>
-                <div class="label" style="margin-bottom:8px;">
-                    DIGITAL INPUT
-                </div>
-                <span id="sw2Stat" class="status-huge release">
-                    RELEASE
-                </span>
+                <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
+                <span id="sw2Stat" class="status-huge release">RELEASE</span>
             </div>
             <div class="ch-card" style="border-color:#d946ef;">
                 <div class="ch-title c3">📶 CH3: RSSI</div>
                 <div class="label">SIGNAL</div>
-                <div id="rssiDb" class="val-small" 
-                     style="margin-bottom:16px;">
-                    --- dBm
-                </div>
-                <span id="rssiStat" class="status-huge release" 
-                      style="font-size:10px;">
-                    LIVE
-                </span>
+                <div id="rssiDb" class="val-small" style="margin-bottom:16px;">--- dBm</div>
+                <span id="rssiStat" class="status-huge release" style="font-size:11px;">LIVE</span>
             </div>
         </div>
 
         <div class="noise-box">
-            <div>
-                <div class="label" style="text-align:left;">
-                    POWER LINE MONITOR
-                </div>
-            </div>
+            <div><div class="label" style="text-align:left;">POWER LINE MONITOR</div></div>
             <div id="noise" class="noise-val">--.- mV</div>
         </div>
 
         <div class="remote-box">
-            <div class="label" 
-                 style="color:#60a5fa;text-align:center;margin-bottom:8px;">
-                REMOTE COMMAND TEST
-            </div>
-            <button id="ledBtn" class="btn-led" 
-                    onclick="toggleRemoteLed()">
-                SEND: LED ON
-            </button>
+            <div class="label" style="color:#60a5fa;text-align:center;margin-bottom:8px;">REMOTE COMMAND TEST</div>
+            <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
 
+        <!-- 📜 過去ログ表示エリア：切り分けテスト用に初期状態を明示 -->
         <div class="db-box">
-            <div class="db-title">
-                🛢️ SUPABASE CLOUD ARCHIVE (LATEST 3)
-            </div>
+            <div class="db-title">🛢️ SUPABASE CLOUD ARCHIVE (LATEST 3)</div>
             <div id="dbLogs">
-                <div style="text-align:center;font-size:10px;color:#4b5563;">
-                    待機中...
-                </div>
+                <div style="text-align:center;font-size:10px;color:#6b7280;">一時停止中 (EMQXテスト優先)</div>
             </div>
         </div>
 
-        <!-- 🛠️ 現在の接続引数・ポート・エラーを全て改行して暴くパネル -->
+        <!-- 🛠️ 進捗ログが上書きされずに下へ下へと蓄積される診断コンソール -->
         <div class="debug-panel">
-            <div class="debug-title">
-                🛠️ LIVE SYSTEM DIAGNOSTIC CONSOLE
-            </div>
-            <div id="debugConsole" class="debug-line">
-                ログ解析中...
-            </div>
-            <div id="dbgArgs" class="debug-line" 
-                 style="border-top:1px dashed #854d0e;padding-top:6px;margin-top:6px;">
-                引数データ: 読込中...
-            </div>
+            <div class="debug-title">🛠️ LIVE SYSTEM DIAGNOSTIC CONSOLE</div>
+            <div id="debugConsole" class="debug-line">ログ解析中...</div>
+            <div id="dbgArgs" class="debug-line" style="border-top:1px dashed #854d0e;padding-top:6px;margin-top:6px;">引数データ: 読込中...</div>
         </div>
 
-        <div class="sync-indicator">
-            <span id="syncDot" class="dot"></span>
-            <span id="syncText">READY</span>
-        </div>
+        <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
-    <script>
+     <script>
         const T_TEL = "esp32_01/industrial/telemetry";
         const T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, globalConfig = null;
         let l_url = "", l_user = "", l_pass = "";
 
+        // 💡 ログを上書きせず、下にどんどん改行追加していくための関数
         function addDebugLog(msg, isError = false) {
             const consoleEl = document.getElementById("debugConsole");
             const colorClass = isError ? 'class="debug-alert"' : '';
             consoleEl.innerHTML += `<div ${colorClass}>・${msg}</div>`;
-        }
-        function updateStatusText(msg) {
-            document.getElementById("syncText").innerText = msg;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -360,25 +318,27 @@
                     `・SB_URL  : ${globalConfig.sb_url || '未設定'}<br>` +
                     `・SB_KEY  : ${globalConfig.sb_key || '未設定'}`;
 
+                // ⭕ 【切り分けテスト】Supabase通信を一切呼ばず、EMQX接続だけを直撃させます
                 startMqttConnection();
 
             } catch(e) {
                 addDebugLog("初期化エラー: " + e.message, true);
                 const err = document.getElementById("errMsg");
+                err.style.color = "#f59e0b";
                 err.style.display = "block";
                 err.innerText = "⚠️ エラー: " + e.message;
             }
         });
 
-        function startMqttConnection() {
+                 function startMqttConnection() {
             addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
             document.getElementById("syncText").innerText = "CONNECTING...";
             
+            // 💡 以前100%接続に成功していた頃のオリジナルオプションに完全固定！
             client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
                 username: l_user,
                 password: l_pass,
-                clientId: 'web_panel_' + 
-                    Math.random().toString(16).substr(2, 8),
+                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
                 protocolId: 'MQIsdp',
                 protocolVersion: 3,
                 connectTimeout: 5000,
@@ -387,28 +347,22 @@
             });
             
             client.on('connect', () => {
-                document.getElementById("syncDot").className = 
-                    "dot online";
-                document.getElementById("syncText").innerText = 
-                    "CONNECTED";
+                document.getElementById("syncDot").className = "dot online";
+                document.getElementById("syncText").innerText = "CONNECTED";
                 addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保しました🟢</span>");
+                client.subscribe(T_TEL);
                 
-                client.subscribe(T_TEL, () => {
-                    addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ サブスクライブ完了！ALL SYSTEMS ONLINE 🟢</span>");
-                    fetchSupabaseLogs();
-                    setInterval(silentFetchSupabaseLogs, 10000);
-                });
+                // ❌ 【切り分け対応】Supabaseへの通信トリガーを完全に無効化
+                // fetchSupabaseLogs(); setInterval(silentFetchSupabaseLogs, 10000);
             });
 
             client.on('close', () => {
                 document.getElementById("syncDot").className = "dot";
-                document.getElementById("syncText").innerText = 
-                    "DISCONNECTED";
+                document.getElementById("syncText").innerText = "DISCONNECTED";
             });
 
             client.on('error', (err) => {
-                addDebugLog("→ EMQX接続エラー発生: " + 
-                    (err.message || "拒否(failed)"), true);
+                addDebugLog("→ EMQX接続エラー発生: " + (err.message || "拒否(failed)"), true);
             });
 
             client.on('message', (t, m) => {
@@ -435,8 +389,7 @@
                         document.getElementById("noise").innerText = 
                             Number(r.noise_mv).toFixed(1) + " mV";
                         document.getElementById("noise").style.color = 
-                            Number(r.noise_mv) > 50.0 ? 
-                            "#f59e0b" : "#10b981";
+                            Number(r.noise_mv) > 50.0 ? "#f59e0b" : "#10b981";
                         
                         const s1 = document.getElementById("sw1Stat");
                         s1.innerText = r.sw1_stat;
@@ -466,77 +419,11 @@
             });
         }
 
-        function fetchSupabaseLogs() {
-            if (!globalConfig || 
-                !globalConfig.sb_url || 
-                !globalConfig.sb_key) return;
-            addDebugLog("【STEP2】SUPABASEから過去ログの読み込みを開始...📥");
-            const endpoint = `${globalConfig.sb_url}/rest/v1/` +
-                `esp32_telemetry?select=*&order=created_at.desc&limit=3`;
-            
-            fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    'apikey': globalConfig.sb_key,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(res => {
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                return res.json();
-            })
-            .then(data => {
-                renderLogsToTable(data);
-                addDebugLog("<span style='color:#10b981;'>→ SUPABASE過去ログの取得に成功しました。</span>");
-            })
-            .catch(err => {
-                console.error(err);
-                document.getElementById("dbLogs").innerHTML = 
-                    `<div style="text-align:center;font-size:10px;` +
-                    `color:#ef4444;">データ取得エラー</div>`;
-                addDebugLog("→ SUPABASE通信失敗: " + err.message, true);
-            });
-        }
-
-        function renderLogsToTable(data) {
-            const container = document.getElementById("dbLogs");
-            if (!data || data.length === 0) {
-                container.innerHTML = 
-                    `<div style="text-align:center;font-size:10px;` +
-                    `color:#4b5563;">レコード無し</div>`;
-                return;
-            }
-            container.innerHTML = data.map(row => {
-                const t = new Date(row.created_at)
-                    .toLocaleTimeString('ja-JP', {hour12:false});
-                return `<div class="log-item">[時刻] <span class="log-time">${t}</span><br>[端末] MAC:${row.mac}<br>[状態] SW1:[${row.sw1_stat}/E:${row.sw1_edge}] SW2:[${row.sw2_stat}]<br>[計測] ADC:${Number(row.noise_mv).toFixed(1)}mV / ${row.rssi_db}dBm</div>`;
-            }).join('');
-        }
-
-        function silentFetchSupabaseLogs() {
-            if (!globalConfig || 
-                !globalConfig.sb_url || 
-                !globalConfig.sb_key) return;
-            const endpoint = `${globalConfig.sb_url}/rest/v1/` +
-                `esp32_telemetry?select=*&order=created_at.desc&limit=3`;
-            fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    'apikey': globalConfig.sb_key,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(res => { if (res.ok) return res.json(); })
-            .then(data => renderLogsToTable(data))
-            .catch(err => console.error(err));
-        }
-
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
             btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
-            btn.className = btn.className.includes("active") ? 
-                "btn-led" : "btn-led active";
+            btn.className = btn.className.includes("active") ? "btn-led" : "btn-led active";
             if (client && client.connected) {
                 client.publish(T_CMD, ledState ? "1" : "0");
             } else {
@@ -546,4 +433,3 @@
     </script>
 </body>
 </html>
-    
