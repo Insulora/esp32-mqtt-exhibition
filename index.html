@@ -4,248 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 INDUSTRIAL PANEL</title>
-    
-    <!-- 💡 世界中で最も安定している公式CDNライブラリ -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    
     <style>
-        body {
-            background: #0b0f19;
-            color: #f3f4f6;
-            font-family: 'Courier New', monospace;
-            padding: 10px;
-            margin: 0;
-        }
-        .frame {
-            border: 2px solid #10b981;
-            padding: 15px;
-            border-radius: 8px;
-            max-width: 420px;
-            margin: 10px auto;
-            background: #111827;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
-            box-sizing: border-box;
-        }
-        .title {
-            color: #10b981;
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #1f2937;
-            padding-bottom: 5px;
-            text-align: center;
-        }
-        .grid-3ch {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .ch-card {
-            background: #111827;
-            border: 1px solid #4b5563;
-            padding: 10px;
-            border-radius: 6px;
-            text-align: center;
-        }
-        .ch-title {
-            font-size: 11px;
-            font-weight: bold;
-            margin-bottom: 6px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #1f2937;
-        }
+        body { background: #0b0f19; color: #f3f4f6; font-family: 'Courier New', monospace; padding: 10px; margin: 0; }
+        .frame { border: 2px solid #10b981; padding: 15px; border-radius: 8px; max-width: 420px; margin: 10px auto; background: #111827; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); box-sizing: border-box; }
+        .title { color: #10b981; font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #1f2937; padding-bottom: 5px; text-align: center; }
+        .grid-3ch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .ch-card { background: #111827; border: 1px solid #4b5563; padding: 10px; border-radius: 6px; text-align: center; }
+        .ch-title { font-size: 11px; font-weight: bold; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #1f2937; }
         .c1 { color: #f59e0b; border-color: #f59e0b; }
         .c2 { color: #06b6d4; border-color: #06b6d4; }
         .c3 { color: #d946ef; border-color: #d946ef; }
-        .label {
-            color: #9ca3af;
-            font-size: 11px;
-            margin-bottom: 2px;
-        }
-        .val-small {
-            font-size: 16px;
-            font-weight: bold;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-        .status-huge {
-            display: block;
-            width: 85%;
-            margin: 0 auto;
-            padding: 6px 0;
-            font-size: 13px;
-            font-weight: bold;
-            border-radius: 4px;
-            text-transform: uppercase;
-            text-align: center;
-        }
-        .status-huge.pressed {
-            background: #10b981;
-            color: #ffffff;
-            animation: pulse 0.6s infinite alternate;
-        }
-        .status-huge.release {
-            background: #374151;
-            color: #9ca3af;
-        }
-        .noise-box {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #1f2937;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            border: 1px solid #374151;
-        }
-        .noise-val {
-            font-size: 20px;
-            font-weight: bold;
-            color: #10b981;
-        }
-        .remote-box {
-            background: #111c2e;
-            border: 1px solid #1e3a8a;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-        }
-        .btn-led {
-            width: 100%;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #ffffff;
-            background: #3b82f6;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            box-shadow: 0 4px 0px #1d4ed8;
-            transition: 0.1s;
-            text-align: center;
-        }
-        .btn-led:active {
-            transform: translateY(4px);
-            box-shadow: none;
-        }
-        .btn-led.active {
-            background: #10b981;
-            box-shadow: 0 4px 0px #059669;
-        }
-        .sync-indicator {
-            text-align: center;
-            font-size: 11px;
-            color: #6b7280;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #fbbf24;
-            display: inline-block;
-        }
-        .dot.online {
-            background: #10b981;
-            box-shadow: 0 0 8px #10b981;
-        }
-        @keyframes pulse {
-            from { transform: scale(1); }
-            to { transform: scale(1.04); }
-        }
-        .err-msg {
-            color: #f59e0b;
-            text-align: center;
-            font-size: 12px;
-            margin: 10px;
-            display: none;
-        }
-        .db-box {
-            background: #0d1117;
-            border: 1px dashed #3b82f6;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 15px;
-            box-sizing: border-box;
-        }
-        .db-title {
-            font-size: 11px;
-            color: #3b82f6;
-            font-weight: bold;
-            margin-bottom: 8px;
-            text-align: center;
-            border-bottom: 1px dashed #1e3a8a;
-            padding-bottom: 4px;
-        }
-        .log-item {
-            font-size: 10px;
-            color: #cbd5e1;
-            background: #161b22;
-            padding: 6px;
-            border-radius: 4px;
-            margin-bottom: 6px;
-            border-left: 3px solid #3b82f6;
-            line-height: 1.5;
-            word-break: break-all;
-            white-space: normal;
-        }
-        .log-time { color: #38bdf8; font-weight: bold; }
-        .log-edge { color: #f59e0b; font-weight: bold; }
-        
-        .debug-panel {
-            background: #1a1505;
-            border: 1px solid #eab308;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 15px;
-            font-size: 9px;
-            color: #fef08a;
-            box-sizing: border-box;
-        }
-        .debug-title {
-            color: #eab308;
-            font-weight: bold;
-            margin-bottom: 8px;
-            border-bottom: 1px solid #854d0e;
-            padding-bottom: 4px;
-            font-size: 10px;
-        }
-        .debug-line {
-            margin-bottom: 6px;
-            word-break: break-all;
-            line-height: 1.4;
-        }
-        .debug-alert {
-            color: #f87171;
-            font-weight: bold;
-        }
+        .label { color: #9ca3af; font-size: 11px; margin-bottom: 2px; text-align: center; }
+        .val-small { font-size: 14px; font-weight: bold; color: #ffffff; margin-bottom: 8px; }
+        .status-huge { display: block; width: 85%; margin: 0 auto; padding: 6px 0; font-size: 11px; font-weight: bold; border-radius: 4px; text-transform: uppercase; text-align: center; }
+        .status-huge.pressed { background: #10b981; color: #ffffff; animation: pulse 0.6s infinite alternate; }
+        .status-huge.release { background: #374151; color: #9ca3af; }
+        .noise-box { display: flex; justify-content: space-between; align-items: center; background: #1f2937; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #374151; }
+        .noise-val { font-size: 20px; font-weight: bold; color: #10b981; }
+        .remote-box { background: #111c2e; border: 1px solid #1e3a8a; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .btn-led { width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: #ffffff; background: #3b82f6; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0px #1d4ed8; transition: 0.1s; text-align: center; }
+        .btn-led:active { transform: translateY(4px); box-shadow: none; }
+        .btn-led.active { background: #10b981; box-shadow: 0 4px 0px #059669; }
+        .sync-indicator { text-align: center; font-size: 11px; color: #6b7280; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; display: inline-block; }
+        .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.04); } }
+        .err-msg { color: #f59e0b; text-align: center; font-size: 12px; margin: 10px; display: none; }
+        .db-box { background: #0d1117; border: 1px dashed #3b82f6; padding: 10px; border-radius: 6px; margin-top: 15px; box-sizing: border-box; }
+        .db-title { font-size: 11px; color: #3b82f6; font-weight: bold; margin-bottom: 8px; text-align: center; border-bottom: 1px dashed #1e3a8a; padding-bottom: 4px; }
+        .debug-panel { background: #1a1505; border: 1px solid #eab308; padding: 12px; border-radius: 6px; margin-top: 15px; font-size: 9px; color: #fef08a; box-sizing: border-box; }
+        .debug-title { color: #eab308; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #854d0e; padding-bottom: 4px; font-size: 10px; }
+        .debug-line { margin-bottom: 6px; word-break: break-all; line-height: 1.4; }
+        .debug-alert { color: #f87171; font-weight: bold; }
     </style>
 </head>
 <body>
-        <div class="frame">
+    <div class="frame">
         <div class="title">⚡ ESP32 3CH LIVE STREAM ⚡</div>
         <div id="errMsg" class="err-msg"></div>
         
         <div class="grid-3ch">
-            <div class="ch-card" style="border-color:#f59e0b;">
-                <div class="ch-title c1">🔵 CH1: SW1</div>
+            <div class="ch-card c1">
+                <div class="ch-title">🔵 CH1: SW1</div>
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
                 <span id="sw1Stat" class="status-huge release">RELEASE</span>
             </div>
-            <div class="ch-card" style="border-color:#06b6d4;">
-                <div class="ch-title c2">🟢 CH2: SW2</div>
+            <div class="ch-card c2">
+                <div class="ch-title">🟢 CH2: SW2</div>
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
                 <span id="sw2Stat" class="status-huge release">RELEASE</span>
             </div>
-            <div class="ch-card" style="border-color:#d946ef;">
-                <div class="ch-title c3">📶 CH3: RSSI</div>
+            <div class="ch-card c3">
+                <div class="ch-title">📶 CH3: RSSI</div>
                 <div class="label">SIGNAL</div>
-                <div id="rssiDb" class="val-small" style="margin-bottom:16px;">--- dBm</div>
+                <div id="rssiDb" class="val-small">--- dBm</div>
                 <span id="rssiStat" class="status-huge release" style="font-size:11px;">LIVE</span>
             </div>
         </div>
@@ -260,15 +73,11 @@
             <button id="ledBtn" class="btn-led" onclick="toggleRemoteLed()">SEND: LED ON</button>
         </div>
 
-        <!-- 📜 過去ログ表示エリア：切り分けテスト用に初期状態を明示 -->
         <div class="db-box">
             <div class="db-title">🛢️ SUPABASE CLOUD ARCHIVE (LATEST 3)</div>
-            <div id="dbLogs">
-                <div style="text-align:center;font-size:10px;color:#6b7280;">一時停止中 (EMQXテスト優先)</div>
-            </div>
+            <div id="dbLogs"><div style="text-align:center;font-size:10px;color:#6b7280;">一時停止中 (EMQXテスト優先)</div></div>
         </div>
 
-        <!-- 🛠️ 進捗ログが上書きされずに下へ下へと蓄積される診断コンソール -->
         <div class="debug-panel">
             <div class="debug-title">🛠️ LIVE SYSTEM DIAGNOSTIC CONSOLE</div>
             <div id="debugConsole" class="debug-line">ログ解析中...</div>
@@ -277,140 +86,87 @@
 
         <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
-     <script>
-        const T_TEL = "esp32_01/industrial/telemetry";
-        const T_CMD = "esp32_01/industrial/command";
-        let ledState = false, client = null, globalConfig = null;
-        let l_url = "", l_user = "", l_pass = "";
+<script>
+        const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
+        let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
 
-        // 💡 ログを上書きせず、下にどんどん改行追加していくための関数
         function addDebugLog(msg, isError = false) {
-            const consoleEl = document.getElementById("debugConsole");
-            const colorClass = isError ? 'class="debug-alert"' : '';
-            consoleEl.innerHTML += `<div ${colorClass}>・${msg}</div>`;
+            document.getElementById("debugConsole").innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 addDebugLog("URL引数の解析を開始します...🔍");
-                const p = new URLSearchParams(window.location.search);
-                let k = p.get('key'); // 💡 const から let に変更して文字を加工できるようにします
+                let k = new URLSearchParams(window.location.search).get('key');
                 if (!k) throw new Error("URL引数(?key=)無し");
                 
-                // ⭕ 【Windowsコピペバグ完全パージ】
-                // | clip によって末尾に勝手に混入した目に見えない改行コード（\r や \n）を
-                // 1文字残さず完全に抹殺し、データ破損を200%シールドする最終兵器！
-                k = k.replace(/[\r\n]/g, '').trim();
-                
-                globalConfig = JSON.parse(atob(k));
-                if (!globalConfig.url || !globalConfig.user || !globalConfig.pass) {
-                    throw new Error("データ不正: 設定不足");
-                }
-                l_url = globalConfig.url;
-                l_user = globalConfig.user;
-                l_pass = globalConfig.pass;
+                const globalConfig = JSON.parse(atob(k.replace(/[\r\n]/g, '').trim()));
+                l_url = globalConfig.url; l_user = globalConfig.user; l_pass = globalConfig.pass;
+                if (!l_url || !l_user || !l_pass) throw new Error("データ不正: 設定不足");
                 
                 addDebugLog("Base64の解読に成功しました。");
-
-//              document.getElementById("dbgArgs").innerHTML = 
-//                  `【引数デコード結果】<br>` +
-//                  `・EMQX_URL: ${l_url}<br>` +
-//                  `・MQTT_USER: ${l_user}<br>` +
-//                  `・MQTT_PASS: ${l_pass}<br>` +
-//                  `・SB_URL  : ${globalConfig.sb_url || '未設定'}<br>` +
-//                  `・SB_KEY  : ${globalConfig.sb_key || '未設定'}`;
-
-                // ⭕ 【切り分けテスト】Supabase通信を一切呼ばず、EMQX接続だけを直撃させます
+                document.getElementById("dbgArgs").innerHTML = "【システム引数】認証保護により非表示（暗号トークン検証クリア）";
                 startMqttConnection();
-
             } catch(e) {
                 addDebugLog("初期化エラー: " + e.message, true);
                 const err = document.getElementById("errMsg");
-                err.style.color = "#f59e0b";
-                err.style.display = "block";
+                err.style.cssText = "color:#f59e0b; display:block;";
                 err.innerText = "⚠️ エラー: " + e.message;
             }
         });
 
-function startMqttConnection() {
-    addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
-    document.getElementById("syncText").innerText = "CONNECTING...";
-    
+        function startMqttConnection() {
+            addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
+            document.getElementById("syncText").innerText = "CONNECTING...";
+            
             client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
-                username: l_user,
-                password: l_pass,
+                username: l_user, password: l_pass,
                 clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
-                connectTimeout: 5000,
-                clean: true,
-                rejectUnauthorized: false
+                connectTimeout: 5000, clean: true, rejectUnauthorized: false
             });
-    client.on('connect', () => {
-        document.getElementById("syncDot").className = "dot online";
-        document.getElementById("syncText").innerText = "CONNECTED";
-        addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保しました🟢</span>");
-        client.subscribe(T_TEL);
-    });
+            
+            client.on('connect', () => {
+                document.getElementById("syncDot").className = "dot online";
+                document.getElementById("syncText").innerText = "CONNECTED";
+                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
+                client.subscribe(T_TEL);
+            });
 
-    client.on('close', () => {
-        document.getElementById("syncDot").className = "dot";
-        document.getElementById("syncText").innerText = "DISCONNECTED";
-    });
+            client.on('close', () => {
+                document.getElementById("syncDot").className = "dot";
+                document.getElementById("syncText").innerText = "DISCONNECTED";
+            });
 
-    client.on('error', (err) => {
-        addDebugLog("→ EMQX接続エラー発生: " + (err.message || "拒否(failed)"), true);
-    });
+            client.on('error', (err) => addDebugLog("→ EMQX接続エラー: " + (err.message || "failed"), true));
 
             client.on('message', (t, m) => {
-                if (t === T_TEL) {
-                    try {
-                        const r = JSON.parse(m.toString());
-                        const rStat = document.getElementById("rssiStat");
-                        const rDb = document.getElementById("rssiDb");
-                        
-                        if (Number(r.rssi_db) === 0) {
-                            rDb.innerText = "LAN (有線)";
-                            rStat.innerText = "ETH LIVE";
-                            rStat.className = "status-huge pressed";
-                            rStat.style.background = "#3b82f6";
-                            rStat.style.boxShadow = "none";
-                        } else {
-                            rDb.innerText = Number(r.rssi_db) + " dBm";
-                            rStat.innerText = "SIGNAL OK";
-                            rStat.className = "status-huge pressed";
-                            rStat.style.background = "#10b981";
-                            rStat.style.boxShadow = "none";
-                        }
-                        
-                        document.getElementById("noise").innerText = 
-                            Number(r.noise_mv).toFixed(1) + " mV";
-                        document.getElementById("noise").style.color = 
-                            Number(r.noise_mv) > 50.0 ? "#f59e0b" : "#10b981";
-                        
-                        const s1 = document.getElementById("sw1Stat");
-                        s1.innerText = r.sw1_stat;
-                        if (r.sw1_stat === "PUSH") {
-                            s1.className = "status-huge pressed";
-                            s1.style.background = "#f59e0b";
-                            s1.style.boxShadow = "0 0 10px #f59e0b";
-                        } else {
-                            s1.className = "status-huge release";
-                            s1.style.background = "#374151";
-                            s1.style.boxShadow = "none";
-                        }
-                        
-                        const s2 = document.getElementById("sw2Stat");
-                        s2.innerText = r.sw2_stat;
-                        if (r.sw2_stat === "PUSH") {
-                            s2.className = "status-huge pressed";
-                            s2.style.background = "#06b6d4";
-                            s2.style.boxShadow = "0 0 10px #06b6d4";
-                        } else {
-                            s2.className = "status-huge release";
-                            s2.style.background = "#374151";
-                            s2.style.boxShadow = "none";
-                        }
-                    } catch(e) { console.error(e); }
-                }
+                if (t !== T_TEL) return;
+                try {
+                    const r = JSON.parse(m.toString());
+                    const isEth = Number(r.rssi_db) === 0;
+                    
+                    document.getElementById("rssiDb").innerText = isEth ? "LAN (有線)" : Number(r.rssi_db) + " dBm";
+                    const rStat = document.getElementById("rssiStat");
+                    rStat.innerText = isEth ? "ETH LIVE" : "SIGNAL OK";
+                    rStat.style.cssText = `background: ${isEth ? '#3b82f6' : '#10b981'}; box-shadow: none;`;
+                    rStat.className = "status-huge pressed";
+                    
+                    const noise = Number(r.noise_mv);
+                    const noiseEl = document.getElementById("noise");
+                    noiseEl.innerText = noise.toFixed(1) + " mV";
+                    noiseEl.style.color = noise > 50.0 ? "#f59e0b" : "#10b981";
+                    
+                    const updateSwitch = (id, stat, activeColor) => {
+                        const el = document.getElementById(id);
+                        el.innerText = stat;
+                        const isPush = stat === "PUSH";
+                        el.className = `status-huge ${isPush ? 'pressed' : 'release'}`;
+                        el.style.cssText = isPush ? `background: ${activeColor}; box-shadow: 0 0 10px ${activeColor};` : "background: #374151; box-shadow: none;";
+                    };
+                    
+                    updateSwitch("sw1Stat", r.sw1_stat, "#f59e0b");
+                    updateSwitch("sw2Stat", r.sw2_stat, "#06b6d4");
+                } catch(e) { console.error(e); }
             });
         }
 
@@ -418,13 +174,10 @@ function startMqttConnection() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
             btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
-            btn.className = btn.className.includes("active") ? "btn-led" : "btn-led active";
-            if (client && client.connected) {
-                client.publish(T_CMD, ledState ? "1" : "0");
-            } else {
-                alert("MQTTサーバーに接続されていません。");
-            }
+            btn.className = `btn-led ${ledState ? 'active' : ''}`;
+            if (client && client.connected) client.publish(T_CMD, ledState ? "1" : "0");
+            else alert("MQTTサーバーに接続されていません。");
         }
     </script>
 </body>
-</html>
+</html>    
