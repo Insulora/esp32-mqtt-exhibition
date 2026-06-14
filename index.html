@@ -93,9 +93,15 @@
         let sb_url = "", sb_key = ""; 
 
         function addDebugLog(msg, isError = false) {
-            document.getElementById("debugConsole").innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
+            const consoleEl = document.getElementById("debugConsole");
+            // 💡 常に最新のログを一番上（または下）に追加
+            consoleEl.innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
+    
+            // 💡 箱が縦長にならないよう、ログの行数が6行を超えたら古い行を自動で抹殺する防弾シールド！
+            while (consoleEl.children.length > 5) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
         }
-
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 addDebugLog("URL引数の解析を開始します...🔍");
