@@ -312,13 +312,13 @@
                 
                 addDebugLog("Base64の解読に成功しました。");
 
-                document.getElementById("dbgArgs").innerHTML = 
-                    `【引数デコード結果】<br>` +
-                    `・EMQX_URL: ${l_url}<br>` +
-                    `・MQTT_USER: ${l_user}<br>` +
-                    `・MQTT_PASS: ${l_pass}<br>` +
-                    `・SB_URL  : ${globalConfig.sb_url || '未設定'}<br>` +
-                    `・SB_KEY  : ${globalConfig.sb_key || '未設定'}`;
+//              document.getElementById("dbgArgs").innerHTML = 
+//                  `【引数デコード結果】<br>` +
+//                  `・EMQX_URL: ${l_url}<br>` +
+//                  `・MQTT_USER: ${l_user}<br>` +
+//                  `・MQTT_PASS: ${l_pass}<br>` +
+//                  `・SB_URL  : ${globalConfig.sb_url || '未設定'}<br>` +
+//                  `・SB_KEY  : ${globalConfig.sb_key || '未設定'}`;
 
                 // ⭕ 【切り分けテスト】Supabase通信を一切呼ばず、EMQX接続だけを直撃させます
                 startMqttConnection();
