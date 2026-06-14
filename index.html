@@ -332,40 +332,36 @@
             }
         });
 
-                 function startMqttConnection() {
-            addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
-            document.getElementById("syncText").innerText = "CONNECTING...";
-            
-            // 💡 以前100%接続に成功していた頃のオリジナルオプションに完全固定！
-            client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
-                username: l_user,
-                password: l_pass,
-                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
-                protocolId: 'MQIsdp',
-                protocolVersion: 3,
-                connectTimeout: 5000,
-                clean: true,
-                rejectUnauthorized: false
-            });
-            
-            client.on('connect', () => {
-                document.getElementById("syncDot").className = "dot online";
-                document.getElementById("syncText").innerText = "CONNECTED";
-                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保しました🟢</span>");
-                client.subscribe(T_TEL);
-                
-                // ❌ 【切り分け対応】Supabaseへの通信トリガーを完全に無効化
-                // fetchSupabaseLogs(); setInterval(silentFetchSupabaseLogs, 10000);
-            });
+function startMqttConnection() {
+    addDebugLog("【STEP1】EMQXへのログインを開始（ポート:8084）...⚙️");
+    document.getElementById("syncText").innerText = "CONNECTING...";
+    
+    // 💡 現代のMQTT.js(v5)とEMQXに最適化したクリーンな接続オプション
+    client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
+        username: l_user,
+        password: l_pass,
+        clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+        connectTimeout: 5000,
+        clean: true,
+        rejectUnauthorized: false
+        // ❌ バグの原因となる古いプロトコル指定（protocolId, protocolVersion）を完全排除
+    });
+    
+    client.on('connect', () => {
+        document.getElementById("syncDot").className = "dot online";
+        document.getElementById("syncText").innerText = "CONNECTED";
+        addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保しました🟢</span>");
+        client.subscribe(T_TEL);
+    });
 
-            client.on('close', () => {
-                document.getElementById("syncDot").className = "dot";
-                document.getElementById("syncText").innerText = "DISCONNECTED";
-            });
+    client.on('close', () => {
+        document.getElementById("syncDot").className = "dot";
+        document.getElementById("syncText").innerText = "DISCONNECTED";
+    });
 
-            client.on('error', (err) => {
-                addDebugLog("→ EMQX接続エラー発生: " + (err.message || "拒否(failed)"), true);
-            });
+    client.on('error', (err) => {
+        addDebugLog("→ EMQX接続エラー発生: " + (err.message || "拒否(failed)"), true);
+    });
 
             client.on('message', (t, m) => {
                 if (t === T_TEL) {
