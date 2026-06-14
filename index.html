@@ -86,9 +86,11 @@
 
         <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
-<script>
+    <script>
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
+        // 💡 Supabase接続用のグローバル変数を追加
+        let sb_url = "", sb_key = ""; 
 
         function addDebugLog(msg, isError = false) {
             document.getElementById("debugConsole").innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
@@ -102,6 +104,10 @@
                 
                 const globalConfig = JSON.parse(atob(k.replace(/[\r\n]/g, '').trim()));
                 l_url = globalConfig.url; l_user = globalConfig.user; l_pass = globalConfig.pass;
+                // 💡 引数からSupabaseのURLとKeyを安全に回収
+                sb_url = globalConfig.sb_url || "";
+                sb_key = globalConfig.sb_key || "";
+                
                 if (!l_url || !l_user || !l_pass) throw new Error("データ不正: 設定不足");
                 
                 addDebugLog("Base64の解読に成功しました。");
@@ -130,6 +136,11 @@
                 document.getElementById("syncText").innerText = "CONNECTED";
                 addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
                 client.subscribe(T_TEL);
+                
+                // 💡 【非同期バトンリレー】EMQX接続後に安全にSupabaseの過去ログを取得
+                fetchSupabaseLogs();
+                // 💡 10秒ごとに自動更新（ネットワーク衝突を避けるサイレントモード）
+                setInterval(fetchSupabaseLogs, 10000);
             });
 
             client.on('close', () => {
@@ -168,6 +179,50 @@
                     updateSwitch("sw2Stat", r.sw2_stat, "#06b6d4");
                 } catch(e) { console.error(e); }
             });
+        }
+
+        // 💡 Supabaseから最新3件をJSTに変換して見切れずに表示する防弾関数
+        async function fetchSupabaseLogs() {
+            if (!sb_url || !sb_key) return;
+            try {
+                // 降順(desc)で最新3件をREST APIで直撃取得
+                const res = await fetch(`${sb_url}/rest/v1/telemetry_logs?select=*&order=created_at.desc&limit=3`, {
+                    method: "GET",
+                    headers: {
+                        "apikey": sb_key,
+                        "Authorization": `Bearer ${sb_key}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const logs = await res.json();
+                
+                const container = document.getElementById("dbLogs");
+                if (logs.length === 0) {
+                    container.innerHTML = `<div style="text-align:center;font-size:10px;color:#6b7280;">データがありません</div>`;
+                    return;
+                }
+
+                // 3件のログを見切れ防止デザインでHTML生成
+                container.innerHTML = logs.map(log => {
+                    // UTC文字列をJST（日本時間）へ変換
+                    const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+                    
+                    return `
+                        <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:6px; border-radius:4px; margin-bottom:6px; border-left:3px solid #3b82f6; line-height:1.4;">
+                            <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime}]</span><br>
+                            ID:${log.id} | MAC:${log.mac}<br>
+                            SW1:<span style="color:#f59e0b;">${log.sw1_stat}</span>(E:${log.sw1_edge}) | 
+                            SW2:<span style="color:#06b6d4;">${log.sw2_stat}</span>(E:${log.sw2_edge})<br>
+                            RSSI:${log.rssi_db}dBm | NOISE:${Number(log.noise_mv).toFixed(1)}mV
+                        </div>
+                    `;
+                }).join("");
+
+            } catch(e) {
+                console.error("Supabase Fetch Error:", e);
+                // 画面裏での自動更新のため、診断コンソールを汚さないよう静かにエラーログ
+            }
         }
 
         function toggleRemoteLed() {
