@@ -294,16 +294,18 @@
             try {
                 addDebugLog("URL引数の解析を開始します...🔍");
                 const p = new URLSearchParams(window.location.search);
-                const k = p.get('key');
+                let k = p.get('key'); // 💡 const から let に変更して文字を加工できるようにします
                 if (!k) throw new Error("URL引数(?key=)無し");
-                globalConfig = JSON.parse(atob(k));
                 
-                if (!globalConfig.url || 
-                    !globalConfig.user || 
-                    !globalConfig.pass) {
+                // ⭕ 【Windowsコピペバグ完全パージ】
+                // | clip によって末尾に勝手に混入した目に見えない改行コード（\r や \n）を
+                // 1文字残さず完全に抹殺し、データ破損を200%シールドする最終兵器！
+                k = k.replace(/[\r\n]/g, '').trim();
+                
+                globalConfig = JSON.parse(atob(k));
+                if (!globalConfig.url || !globalConfig.user || !globalConfig.pass) {
                     throw new Error("データ不正: 設定不足");
                 }
-                
                 l_url = globalConfig.url;
                 l_user = globalConfig.user;
                 l_pass = globalConfig.pass;
