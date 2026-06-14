@@ -189,7 +189,8 @@
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
                 
                 // ⭕【大正解のルート】実際に本日データが入っている「telemetry_logs」テーブルから最新1件を取得
-                const res = await fetch(`${cleanUrl}/rest/v1/telemetry_logs?select=*&order=created_at.desc&limit=1`, {
+                //const res = await fetch(`${cleanUrl}/rest/v1/telemetry_logs?select=*&order=created_at.desc&limit=1`, {
+                const res = await fetch(`${cleanUrl}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=1`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
