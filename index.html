@@ -181,14 +181,15 @@
                 } catch(e) { console.error(e); }
             });
         }
-        // 💡 400エラーの原因だった配列指定[0]を完全に修正した最終決定版関数
+        
+       // 💡 実際に本日(6月14日)のデータが溜まっている本物テーブルを直撃する確定版関数
         async function fetchSupabaseLogs() {
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
                 
-                // 💡 最もエラーの起きにくいクリーンなURL構造
-                const res = await fetch(`${cleanUrl}/rest/v1/device_status?id=eq.esp32_01&select=*`, {
+                // ⭕【大正解のルート】実際に本日データが入っている「telemetry_logs」テーブルから最新1件を取得
+                const res = await fetch(`${cleanUrl}/rest/v1/telemetry_logs?select=*&order=created_at.desc&limit=1`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
@@ -205,34 +206,37 @@
                 const container = document.getElementById("dbLogs");
                 
                 if (!dataArray || dataArray.length === 0) {
-                    container.innerHTML = `<div style="text-align:center;font-size:10px;color:#6b7280;">デバイスデータ未登録</div>`;
+                    container.innerHTML = `<div style="text-align:center;font-size:10px;color:#6b7280;">データがありません</div>`;
                     return;
                 }
 
-                // ⭕【ここが本当の修正点】大カッコ[0]で配列から本物の1行を確実に抽出！
-                const status = dataArray[0];
+                // 💡 配列の最新1件（0番目）をオブジェクトとして抽出
+                const log = dataArray[0];
                 
-                // 💡 updated_atから日本時間（JST）の文字列を正確にパース
-                const jstTime = new Date(status.updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+                // 💡 世界標準時（UTC：2026-06-14 11:44:05）を正確に日本時間（JST：20:44:05）へ変換！
+                const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
+                // 💡 本日届いた本物のデータ構造に合わせてHTMLを縦型スマート描画
                 container.innerHTML = `
-                    <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #10b981; line-height:1.5;">
-                        <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime}]</span><br>
-                        DEVICE_ID : <span style="color:#ffffff; font-weight:bold;">${status.id}</span><br>
-                        VOLTS     : ${Number(status.volts).toFixed(2)} V<br>
-                        LINE NOISE: <span style="color:#10b981;">${Number(status.noise).toFixed(1)} mV</span><br>
-                        SW_PRESSED: <span style="color:${status.pressed ? '#f59e0b' : '#9ca3af'}; font-weight:bold;">${status.pressed ? 'TRUE (PUSH)' : 'FALSE'}</span><br>
-                        HTML_CMD  : <span style="color:#3b82f6;">LED_${status.led_cmd ? 'ON' : 'OFF'}</span>
+                    <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #3b82f6; line-height:1.5;">
+                        <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime} JST]</span><br>
+                        ID        : <span style="color:#ffffff; font-weight:bold;">${log.id}</span><br>
+                        MAC       : ${log.mac}<br>
+                        SW1_STAT  : <span style="color:#f59e0b; font-weight:bold;">${log.sw1_stat}</span> (EDGE:${log.sw1_edge})<br>
+                        SW2_STAT  : <span style="color:#06b6d4; font-weight:bold;">${log.sw2_stat}</span> (EDGE:${log.sw2_edge})<br>
+                        RSSI      : ${log.rssi_db} dBm<br>
+                        LINE NOISE: <span style="color:#10b981;">${Number(log.noise_mv).toFixed(1)} mV</span>
                     </div>
                 `;
                 
-                addDebugLog("<span style='color:#38bdf8;'>→ Supabase最新データの同期に成功！📊</span>");
+                addDebugLog("<span style='color:#38bdf8;'>→ Supabase本番ログテーブルの同期に成功！📊</span>");
 
             } catch(e) {
                 console.error("Supabase Fetch Error:", e);
                 addDebugLog("❌ Supabase同期エラー: " + e.message, true);
             }
         }
+        
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
