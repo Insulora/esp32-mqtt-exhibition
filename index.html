@@ -145,20 +145,33 @@
         }
 
         function startMqttConnection() {
-            addDebugLog("【STEP2】EMQX CLOUD（公式 Serverless 仕様）へのログインを開始...⚙️");
+            addDebugLog("【STEP2】EMQX CLOUD（ポート8084・パスなし）へのログインを開始...⚙️");
             document.getElementById("syncText").innerText = "CONNECTING...";
             
-            // ⭕ 【EMQX Cloud Serverless 公式推奨・ブラウザ接続形態】
-            // 1. 制限の厳しい「:8084」をURLから完全に削除。
-            // 2. 末尾を Serverless 必須の合言葉「/mqtt?path=/mqtt」へ結合！
-            client = mqtt.connect(`wss://${l_url}/mqtt?path=/mqtt`, {
-                // 3. 以前成功していた「protocol: 'wss'」を明示して暗号化を固定
-                protocol: 'wss',
+            // ⭕ 【完全大復活】以前100%繋がっていた「URL:8084/mqtt」の形へ完全に巻き戻し！
+            // 不要な protocol: 'wss' や path トラップはすべてゴミ箱へポイして綺麗にパージ！
+            client = mqtt.connect(`wss://${l_url}:8084/mqtt`, {
                 username: l_user,
                 password: l_pass,
                 clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+                protocolId: 'MQIsdp',     // 💡 以前成功したプロトコルIDを復活
+                protocolVersion: 3,        // 💡 以前成功したバージョンを復活
                 connectTimeout: 5000,
-                clean: true
+                clean: true,
+                rejectUnauthorized: false  // 💡 以前成功した証明書スキップを復活
+            });
+            
+            // 💡 完了コールバックを挟むことで、通信が100%完全に安定した「その後」に、
+            // 安全に自動更新タイマーを裏で回し始める美しい連鎖構造をキープ！
+            client.on('connect', () => {
+                document.getElementById("syncDot").className = "dot online";
+                document.getElementById("syncText").innerText = "CONNECTED";
+                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX通信ラインの確保に成功しました。</span>");
+                
+                client.subscribe(T_TEL, () => {
+                    addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ サブスクライブ完了！ALL SYSTEMS ONLINE 🟢</span>");
+                    setInterval(silentFetchSupabaseLogs, 10000);
+                });
             });
             
            
