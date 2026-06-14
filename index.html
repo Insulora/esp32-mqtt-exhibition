@@ -186,8 +186,8 @@
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
-                // 💡 キャッシュ爆破(タイムスタンプ)も合体させ、常に新鮮なデータを要求
-                const res = await fetch(`${cleanUrl}/rest/v1/device_status?id=eq.esp32_01&select=*&_ts=${Date.now()}`, {
+                // 💡 Supabaseの厳格なURL文法に完全適合させた記述（selectとidの順序を最適化）
+                const res = await fetch(`${cleanUrl}/rest/v1/device_status?select=*&id=eq.esp32_01&_ts=${Date.now()}`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
