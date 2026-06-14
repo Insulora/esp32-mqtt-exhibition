@@ -72,14 +72,12 @@
                 
                 document.getElementById("syncText").innerText="CONNECTING TO EMQX CLOUD...⚙️";
                 
-                // 【超重要】EMQX Cloud Serverlessの標準WebSocket(wss / ポート443)へ接続
-                // クラウド上の独立した暗号化エンドポイント(://emqxsl.com)へ完全固定対応
-                client = mqtt.connect(`wss://${config.url}:443/mqtt`, {
+                // 【超重要】EMQX Cloud Serverlessの標準WebSocket(wss / ポート8084)へ接続
+                client = mqtt.connect(`wss://${config.url}:8084/mqtt`, {
                     username: config.user,
                     password: config.pass,
-                    rejectUnauthorized: false // デモ環境におけるブラウザの証明書エラー回避のためのセーフガード
+                    rejectUnauthorized: false
                 });
-                
                 client.on('connect',()=>{
                     document.getElementById("syncDot").className="dot online";
                     document.getElementById("syncText").innerText="CONNECTED TO EMQX CLOUD";
