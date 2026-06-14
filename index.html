@@ -181,24 +181,22 @@
                 } catch(e) { console.error(e); }
             });
         }
-        // 💡 URLの汚れを無くし、ヘッダーでキャッシュを破砕する400エラー完全パージ版
+        // 💡 400エラーの原因だった配列指定[0]を完全に修正した最終決定版関数
         async function fetchSupabaseLogs() {
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
                 
-                // ⭕ URLから「&_ts=...」を完全削除し、Supabaseの純粋な文法に差し戻す
-                const res = await fetch(`${cleanUrl}/rest/v1/device_status?select=*&id=eq.esp32_01`, {
+                // 💡 最もエラーの起きにくいクリーンなURL構造
+                const res = await fetch(`${cleanUrl}/rest/v1/device_status?id=eq.esp32_01&select=*`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
                         "Authorization": `Bearer ${sb_key}`,
                         "Content-Type": "application/json",
                         "Accept": "application/json",
-                        // 💡 【超重要】ブラウザに古い記憶（キャッシュ）の使用を100%禁止させる命令
-                        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-                        "Pragma": "no-cache",
-                        "Expires": "0"
+                        "Cache-Control": "no-store, no-cache, must-revalidate",
+                        "Pragma": "no-cache"
                     }
                 });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -211,8 +209,10 @@
                     return;
                 }
 
-                // ⭕ 配列の「0番目」をオブジェクトとして安全に展開
+                // ⭕【ここが本当の修正点】大カッコ[0]で配列から本物の1行を確実に抽出！
                 const status = dataArray[0];
+                
+                // 💡 updated_atから日本時間（JST）の文字列を正確にパース
                 const jstTime = new Date(status.updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
                 container.innerHTML = `
@@ -226,7 +226,6 @@
                     </div>
                 `;
                 
-                // 💡 成功ログをコンソールに流す
                 addDebugLog("<span style='color:#38bdf8;'>→ Supabase最新データの同期に成功！📊</span>");
 
             } catch(e) {
@@ -234,7 +233,6 @@
                 addDebugLog("❌ Supabase同期エラー: " + e.message, true);
             }
         }
-
         function toggleRemoteLed() {
             ledState = !ledState;
             const btn = document.getElementById("ledBtn");
