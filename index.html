@@ -145,14 +145,14 @@
         }
 
         function startMqttConnection() {
-            addDebugLog("【STEP2】EMQX CLOUD（ポート8084）へのログインを開始...⚙️");
+            addDebugLog("【STEP2】EMQX CLOUD（公式 Serverless 仕様）へのログインを開始...⚙️");
             document.getElementById("syncText").innerText = "CONNECTING...";
-            
-            client=mqtt.connect(`wss://${l_url}:8084/mqtt?path=/mqtt`,{
-                protocol: 'wss',
-                username:l_user,password:l_pass,
-                clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
-                protocolId:'MQIsdp',protocolVersion:3,connectTimeout:5000,clean:true,rejectUnauthorized:false
+            client = mqtt.connect(`wss://${l_url}/mqtt?path=/mqtt`, {
+                username: l_user,
+                password: l_pass,
+                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+                connectTimeout: 5000,
+                clean: true
             });
            
             client.on('connect',()=>{
