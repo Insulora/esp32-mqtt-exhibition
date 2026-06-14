@@ -147,13 +147,20 @@
         function startMqttConnection() {
             addDebugLog("【STEP2】EMQX CLOUD（公式 Serverless 仕様）へのログインを開始...⚙️");
             document.getElementById("syncText").innerText = "CONNECTING...";
+            
+            // ⭕ 【EMQX Cloud Serverless 公式推奨・ブラウザ接続形態】
+            // 1. 制限の厳しい「:8084」をURLから完全に削除。
+            // 2. 末尾を Serverless 必須の合言葉「/mqtt?path=/mqtt」へ結合！
             client = mqtt.connect(`wss://${l_url}/mqtt?path=/mqtt`, {
+                // 3. 以前成功していた「protocol: 'wss'」を明示して暗号化を固定
+                protocol: 'wss',
                 username: l_user,
                 password: l_pass,
                 clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
                 connectTimeout: 5000,
                 clean: true
             });
+            
            
             client.on('connect',()=>{
                 document.getElementById("syncDot").className="dot online";
