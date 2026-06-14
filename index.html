@@ -34,7 +34,7 @@
 </head>
 <body>
     <div class="frame">
-        <div class="title">⚡ ESP32 3CH LIVE STREAM 2⚡</div>
+        <div class="title">⚡ ESP32 3CH LIVE STREAM 3⚡</div>
         <div id="errMsg" class="err-msg"></div>
         <div class="grid-3ch">
             <div class="ch-card" style="border-color:#f59e0b;">
@@ -126,10 +126,12 @@
             // 💡 状態表示：EMQXへのアクセス開始
             updateStatusText("2/2: EMQX CLOUDへログイン中...⚙️");
             
-            client=mqtt.connect(`wss://${globalConfig.url}:8084/mqtt`,{
-                username:globalConfig.user,password:globalConfig.pass,
-                clientId:'web_panel_'+Math.random().toString(16).substr(2,8),
-                protocolId:'MQIsdp',protocolVersion:3,connectTimeout:5000,clean:true,rejectUnauthorized:false
+            client = mqtt.connect(`wss://${globalConfig.url}:443/mqtt?path=/mqtt`, {
+                username: globalConfig.user,
+                password: globalConfig.pass,
+                clientId: 'web_panel_' + Math.random().toString(16).substr(2, 8),
+                connectTimeout: 5000,
+                clean: true
             });
             client.on('connect',()=>{
                 document.getElementById("syncDot").className="dot online";
