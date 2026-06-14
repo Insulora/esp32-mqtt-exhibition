@@ -156,8 +156,11 @@
             client.on('connect',()=>{
                 document.getElementById("syncDot").className="dot online";
                 document.getElementById("syncText").innerText = "CONNECTED";
-                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！ALL SYSTEMS ONLINE 🟢</span>");
-                client.subscribe(T_TEL);setInterval(silentFetchSupabaseLogs,10000);
+                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX通信ラインの確保に成功しました。</span>");
+                client.subscribe(T_TEL, () => {
+                    addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ サブスクライブ完了！ALL SYSTEMS ONLINE 🟢</span>");
+                    setInterval(silentFetchSupabaseLogs, 10000);
+                });
             });
             client.on('close',()=>{
                 document.getElementById("syncDot").className="dot";
