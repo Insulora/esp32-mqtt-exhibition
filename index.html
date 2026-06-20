@@ -174,18 +174,16 @@
                 try {
                     const r = JSON.parse(m.toString());
                     
-                    // 🔄 最下部インジケーター横のネットワーク表示ロジック
                     const isEth = Number(r.rssi_db) === 0;
                     const netStatusEl = document.getElementById("netStatus");
                     if (isEth) {
                         netStatusEl.innerText = "LAN (有線)";
-                        netStatusEl.style.color = "#3b82f6"; // 青色
+                        netStatusEl.style.color = "#3b82f6";
                     } else {
                         netStatusEl.innerText = "RSSI: " + Number(r.rssi_db) + " dBm";
-                        netStatusEl.style.color = "#10b981"; // WiFi接続時はオンラインを示す緑色
+                        netStatusEl.style.color = "#10b981";
                     }
 
-                    // 🔄 CH3（ノイズ専用）の更新処理
                     const noise = Number(r.noise_mv);
                     const noiseDbEl = document.getElementById("noiseDb");
                     const noiseStatEl = document.getElementById("noiseStat");
@@ -247,7 +245,8 @@
                     return;
                 }
 
-                const log = dataArray;
+                // 🛠️ 配列の「0番目（最新の1件）」を正確に取得するように修正
+                const log = dataArray[0];
                 const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
                 container.innerHTML = `
@@ -280,4 +279,4 @@
         }
     </script>
 </body>
-</html>    
+</html>
