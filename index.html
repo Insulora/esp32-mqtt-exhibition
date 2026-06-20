@@ -61,14 +61,18 @@
             <div class="ch-card c1">
                 <div class="ch-title">🔵 CH1: SW1</div>
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
+                <!-- 📐 CH3のmV行と高さを合わせるための透明スペーサー -->
+                <div style="height:22px;"></div>
                 <span id="sw1Stat" class="status-huge release">RELEASE</span>
             </div>
             <div class="ch-card c2">
                 <div class="ch-title">🟢 CH2: SW2</div>
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
+                <!-- 📐 CH3のmV行と高さを合わせるための透明スペーサー -->
+                <div style="height:22px;"></div>
                 <span id="sw2Stat" class="status-huge release">RELEASE</span>
             </div>
-            <!-- 🟢 CH3: ノイズ専用の純粋なアナログ監視カード -->
+            <!-- 🟢 CH3: アナログ監視（高さを自動で他と同期） -->
             <div class="ch-card c3" id="ch3Card">
                 <div class="ch-title">⚡ CH3: ANALOG</div>
                 <div class="label" style="margin-bottom:8px;">ANALOG INPUT</div>
@@ -93,7 +97,6 @@
             <div id="dbgArgs" class="debug-line" style="border-top:1px dashed #854d0e;padding-top:6px;margin-top:6px;">引数データ: 読込中...</div>
         </div>
 
-        <!-- 💡 最下部のインジケーター横にネットワーク状態（LAN/dBm）を引っ越し -->
         <div class="sync-indicator">
             <span id="syncDot" class="dot"></span>
             <span id="syncText">スキャン中...</span>
