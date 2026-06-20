@@ -103,19 +103,32 @@
             <span id="netStatus" style="color:#6b7280; margin-left: 10px; border-left: 1px solid #374151; padding-left: 10px;">---</span>
         </div>
     </div>
-  <script>
+ <script>
+        // ==========================================
+        // 🛠️ システム通信パラメータ設定（ここで一括管理）
+        // ==========================================
+        const CONFIG_SUPABASE_INTERVAL_MS = 10000; // 🔄 通常時のSupabase自動更新間隔（10秒）
+        const CONFIG_COMMAND_WAIT_MS = 4000;       // ⏳ コマンド送信後の反映待ちウェイト（4秒）
+
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
         let sb_url = "", sb_key = ""; 
+        
+        let supabaseTimerId = null;
 
         function addDebugLog(msg, isError = false) {
             const consoleEl = document.getElementById("debugConsole");
             consoleEl.innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
-    
             while (consoleEl.children.length > 5) {
                 consoleEl.removeChild(consoleEl.firstChild);
             }
         }
+        
+        function setupSupabaseInterval() {
+            if (supabaseTimerId) clearInterval(supabaseTimerId);
+            supabaseTimerId = setInterval(fetchSupabaseLogs, CONFIG_SUPABASE_INTERVAL_MS);
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             try {
                 addDebugLog("URL引数の解析を開始します...🔍");
@@ -155,9 +168,8 @@
                 document.getElementById("syncText").innerText = "CONNECTED";
                 addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
                 client.subscribe(T_TEL);
-                
                 fetchSupabaseLogs(); 
-                setInterval(fetchSupabaseLogs, 10000);
+                setupSupabaseInterval(); 
             });
 
             client.on('close', () => {
@@ -165,10 +177,10 @@
                 document.getElementById("syncText").innerText = "DISCONNECTED";
                 document.getElementById("netStatus").innerText = "---";
                 document.getElementById("netStatus").style.color = "#6b7280";
+                if (supabaseTimerId) { clearInterval(supabaseTimerId); supabaseTimerId = null; }
             });
 
             client.on('error', (err) => addDebugLog("→ EMQX接続エラー: " + (err.message || "failed"), true));
-
             client.on('message', (t, m) => {
                 if (t !== T_TEL) return;
                 try {
@@ -245,7 +257,6 @@
                     return;
                 }
 
-                // 🛠️ 配列の「0番目（最新の1件）」を正確に取得するように修正
                 const log = dataArray[0];
                 const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
@@ -274,8 +285,28 @@
             const btn = document.getElementById("ledBtn");
             btn.innerText = ledState ? "SEND: LED OFF" : "SEND: LED ON";
             btn.className = `btn-led ${ledState ? 'active' : ''}`;
-            if (client && client.connected) client.publish(T_CMD, ledState ? "1" : "0");
-            else alert("MQTTサーバーに接続されていません。");
+            
+            if (client && client.connected) {
+                client.publish(T_CMD, ledState ? "1" : "0");
+                
+                // 🔄【タイマー破棄とオンデマンド再スケジュール】
+                if (supabaseTimerId) clearInterval(supabaseTimerId);
+                
+                const waitSec = (CONFIG_COMMAND_WAIT_MS / 1000).toFixed(0);
+                addDebugLog(`コマンド送信。10秒タイマーを破棄し、${waitSec}秒後に強制再同期をスケジューリング...⏳`);
+                
+                setTimeout(() => {
+                    addDebugLog("⚡ コマンド連動の強制フェッチを実行。");
+                    fetchSupabaseLogs();
+                    
+                    // 🔄 フェッチ完了を起点に、新しく10秒タイマーのカウントを開始
+                    addDebugLog("🔄 自動更新タイマー（10秒間隔）をリセット再起動しました。");
+                    setupSupabaseInterval();
+                }, CONFIG_COMMAND_WAIT_MS);
+                
+            } else {
+                alert("MQTTサーバーに接続されていません。");
+            }
         }
     </script>
 </body>
