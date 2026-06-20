@@ -53,10 +53,10 @@
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
                 <span id="sw2Stat" class="status-huge release">RELEASE</span>
             </div>
-            <!-- 🔄 CH3: ANALOG タイトルと統合モニター表示 -->
+            <!-- 🟢 CH3: ノイズ専用の純粋なアナログ監視カード -->
             <div class="ch-card c3" id="ch3Card">
                 <div class="ch-title">⚡ CH3: ANALOG</div>
-                <div id="netStatus" class="label" style="color:#60a5fa; font-weight:bold;">---</div>
+                <div class="label" style="margin-bottom:8px;">ANALOG INPUT</div>
                 <div id="noiseDb" class="val-small">--.- mV</div>
                 <span id="noiseStat" class="status-huge release" style="font-size:11px;">SAFE</span>
             </div>
@@ -78,9 +78,14 @@
             <div id="dbgArgs" class="debug-line" style="border-top:1px dashed #854d0e;padding-top:6px;margin-top:6px;">引数データ: 読込中...</div>
         </div>
 
-        <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
+        <!-- 💡 最下部のインジケーター横にネットワーク状態（LAN/dBm）を引っ越し -->
+        <div class="sync-indicator">
+            <span id="syncDot" class="dot"></span>
+            <span id="syncText">スキャン中...</span>
+            <span id="netStatus" style="color:#6b7280; margin-left: 10px; border-left: 1px solid #374151; padding-left: 10px;">---</span>
+        </div>
     </div>
-     <script>
+  <script>
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
         let sb_url = "", sb_key = ""; 
@@ -140,6 +145,8 @@
             client.on('close', () => {
                 document.getElementById("syncDot").className = "dot";
                 document.getElementById("syncText").innerText = "DISCONNECTED";
+                document.getElementById("netStatus").innerText = "---";
+                document.getElementById("netStatus").style.color = "#6b7280";
             });
 
             client.on('error', (err) => addDebugLog("→ EMQX接続エラー: " + (err.message || "failed"), true));
@@ -149,16 +156,18 @@
                 try {
                     const r = JSON.parse(m.toString());
                     
+                    // 🔄 最下部インジケーター横のネットワーク表示ロジック
                     const isEth = Number(r.rssi_db) === 0;
                     const netStatusEl = document.getElementById("netStatus");
                     if (isEth) {
                         netStatusEl.innerText = "LAN (有線)";
-                        netStatusEl.style.color = "#3b82f6";
+                        netStatusEl.style.color = "#3b82f6"; // 青色
                     } else {
-                        netStatusEl.innerText = Number(r.rssi_db) + " dBm";
-                        netStatusEl.style.color = "#9ca3af";
+                        netStatusEl.innerText = "RSSI: " + Number(r.rssi_db) + " dBm";
+                        netStatusEl.style.color = "#10b981"; // WiFi接続時はオンラインを示す緑色
                     }
 
+                    // 🔄 CH3（ノイズ専用）の更新処理
                     const noise = Number(r.noise_mv);
                     const noiseDbEl = document.getElementById("noiseDb");
                     const noiseStatEl = document.getElementById("noiseStat");
@@ -220,7 +229,7 @@
                     return;
                 }
 
-                const log = dataArray[0];
+                const log = dataArray;
                 const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
                 container.innerHTML = `
@@ -253,4 +262,4 @@
         }
     </script>
 </body>
-</html>
+</html>    
