@@ -14,14 +14,12 @@
         .ch-title { font-size: 11px; font-weight: bold; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #1f2937; }
         .c1 { color: #f59e0b; border-color: #f59e0b; }
         .c2 { color: #06b6d4; border-color: #06b6d4; }
-        .c3 { color: #d946ef; border-color: #d946ef; }
+        .c3 { color: #10b981; border-color: #10b981; }
         .label { color: #9ca3af; font-size: 11px; margin-bottom: 2px; text-align: center; }
         .val-small { font-size: 14px; font-weight: bold; color: #ffffff; margin-bottom: 8px; }
         .status-huge { display: block; width: 85%; margin: 0 auto; padding: 6px 0; font-size: 11px; font-weight: bold; border-radius: 4px; text-transform: uppercase; text-align: center; }
         .status-huge.pressed { background: #10b981; color: #ffffff; animation: pulse 0.6s infinite alternate; }
         .status-huge.release { background: #374151; color: #9ca3af; }
-        .noise-box { display: flex; justify-content: space-between; align-items: center; background: #1f2937; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #374151; }
-        .noise-val { font-size: 20px; font-weight: bold; color: #10b981; }
         .remote-box { background: #111c2e; border: 1px solid #1e3a8a; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
         .btn-led { width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: #ffffff; background: #3b82f6; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0px #1d4ed8; transition: 0.1s; text-align: center; }
         .btn-led:active { transform: translateY(4px); box-shadow: none; }
@@ -55,17 +53,13 @@
                 <div class="label" style="margin-bottom:8px;">DIGITAL INPUT</div>
                 <span id="sw2Stat" class="status-huge release">RELEASE</span>
             </div>
-            <div class="ch-card c3">
-                <div class="ch-title">📶 CH3: RSSI</div>
-                <div class="label">SIGNAL</div>
-                <div id="rssiDb" class="val-small">--- dBm</div>
-                <span id="rssiStat" class="status-huge release" style="font-size:11px;">LIVE</span>
+            <!-- 🔄 CH3: ANALOG タイトルと統合モニター表示 -->
+            <div class="ch-card c3" id="ch3Card">
+                <div class="ch-title">⚡ CH3: ANALOG</div>
+                <div id="netStatus" class="label" style="color:#60a5fa; font-weight:bold;">---</div>
+                <div id="noiseDb" class="val-small">--.- mV</div>
+                <span id="noiseStat" class="status-huge release" style="font-size:11px;">SAFE</span>
             </div>
-        </div>
-
-        <div class="noise-box">
-            <div><div class="label" style="text-align:left;">POWER LINE MONITOR</div></div>
-            <div id="noise" class="noise-val">--.- mV</div>
         </div>
 
         <div class="remote-box">
@@ -86,18 +80,15 @@
 
         <div class="sync-indicator"><span id="syncDot" class="dot"></span><span id="syncText">スキャン中...</span></div>
     </div>
-    <script>
+     <script>
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
-        // 💡 Supabase接続用のグローバル変数を追加
         let sb_url = "", sb_key = ""; 
 
         function addDebugLog(msg, isError = false) {
             const consoleEl = document.getElementById("debugConsole");
-            // 💡 常に最新のログを一番上（または下）に追加
             consoleEl.innerHTML += `<div ${isError ? 'class="debug-alert"' : ''}>・${msg}</div>`;
     
-            // 💡 箱が縦長にならないよう、ログの行数が6行を超えたら古い行を自動で抹殺する防弾シールド！
             while (consoleEl.children.length > 5) {
                 consoleEl.removeChild(consoleEl.firstChild);
             }
@@ -110,7 +101,6 @@
                 
                 const globalConfig = JSON.parse(atob(k.replace(/[\r\n]/g, '').trim()));
                 l_url = globalConfig.url; l_user = globalConfig.user; l_pass = globalConfig.pass;
-                // 💡 引数からSupabaseのURLとKeyを安全に回収
                 sb_url = globalConfig.sb_url || "";
                 sb_key = globalConfig.sb_key || "";
                 
@@ -143,11 +133,8 @@
                 addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
                 client.subscribe(T_TEL);
                 
-                // ==========================================
-                // 💡 【超重要】ここでSupabaseへバトンを繋ぐ！
-                // ==========================================
                 fetchSupabaseLogs(); 
-                setInterval(fetchSupabaseLogs, 10000); // 10秒自動更新
+                setInterval(fetchSupabaseLogs, 10000);
             });
 
             client.on('close', () => {
@@ -161,18 +148,37 @@
                 if (t !== T_TEL) return;
                 try {
                     const r = JSON.parse(m.toString());
+                    
                     const isEth = Number(r.rssi_db) === 0;
-                    
-                    document.getElementById("rssiDb").innerText = isEth ? "LAN (有線)" : Number(r.rssi_db) + " dBm";
-                    const rStat = document.getElementById("rssiStat");
-                    rStat.innerText = isEth ? "ETH LIVE" : "SIGNAL OK";
-                    rStat.style.cssText = `background: ${isEth ? '#3b82f6' : '#10b981'}; box-shadow: none;`;
-                    rStat.className = "status-huge pressed";
-                    
+                    const netStatusEl = document.getElementById("netStatus");
+                    if (isEth) {
+                        netStatusEl.innerText = "LAN (有線)";
+                        netStatusEl.style.color = "#3b82f6";
+                    } else {
+                        netStatusEl.innerText = Number(r.rssi_db) + " dBm";
+                        netStatusEl.style.color = "#9ca3af";
+                    }
+
                     const noise = Number(r.noise_mv);
-                    const noiseEl = document.getElementById("noise");
-                    noiseEl.innerText = noise.toFixed(1) + " mV";
-                    noiseEl.style.color = noise > 50.0 ? "#f59e0b" : "#10b981";
+                    const noiseDbEl = document.getElementById("noiseDb");
+                    const noiseStatEl = document.getElementById("noiseStat");
+                    const ch3CardEl = document.getElementById("ch3Card");
+                    
+                    noiseDbEl.innerText = noise.toFixed(1) + " mV";
+                    
+                    if (noise > 50.0) {
+                        ch3CardEl.style.borderColor = "#f59e0b";
+                        ch3CardEl.style.color = "#f59e0b";
+                        noiseStatEl.innerText = "WARN";
+                        noiseStatEl.className = "status-huge pressed";
+                        noiseStatEl.style.cssText = "background: #f59e0b; box-shadow: 0 0 10px #f59e0b; font-size:11px;";
+                    } else {
+                        ch3CardEl.style.borderColor = "#10b981";
+                        ch3CardEl.style.color = "#10b981";
+                        noiseStatEl.innerText = "SAFE";
+                        noiseStatEl.className = "status-huge release";
+                        noiseStatEl.style.cssText = "background: #374151; box-shadow: none; font-size:11px;";
+                    }
                     
                     const updateSwitch = (id, stat, activeColor) => {
                         const el = document.getElementById(id);
@@ -187,15 +193,12 @@
                 } catch(e) { console.error(e); }
             });
         }
-        
-       // 💡 実際に本日(6月14日)のデータが溜まっている本物テーブルを直撃する確定版関数
+
         async function fetchSupabaseLogs() {
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
                 
-                // ⭕【大正解のルート】実際に本日データが入っている「telemetry_logs」テーブルから最新1件を取得
-                //const res = await fetch(`${cleanUrl}/rest/v1/telemetry_logs?select=*&order=created_at.desc&limit=1`, {
                 const res = await fetch(`${cleanUrl}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=1`, {
                     method: "GET",
                     headers: {
@@ -217,13 +220,9 @@
                     return;
                 }
 
-                // 💡 配列の最新1件（0番目）をオブジェクトとして抽出
                 const log = dataArray[0];
-                
-                // 💡 世界標準時（UTC：2026-06-14 11:44:05）を正確に日本時間（JST：20:44:05）へ変換！
                 const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
                 
-                // 💡 本日届いた本物のデータ構造に合わせてHTMLを縦型スマート描画
                 container.innerHTML = `
                     <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #3b82f6; line-height:1.5;">
                         <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime} JST]</span><br>
@@ -254,4 +253,4 @@
         }
     </script>
 </body>
-</html>    
+</html>
