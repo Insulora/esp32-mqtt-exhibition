@@ -91,7 +91,8 @@
         // ==========================================
         const CONFIG_SUPABASE_INTERVAL_MS = 10000;    // 🔄 通常時のSupabase自動更新間隔（10秒）
         const CONFIG_COMMAND_WAIT_MS = 4000;          // ⏳ コマンド送信後の反映待ちウェイト（4秒）
-        const CONFIG_NOISE_WARN_THRESHOLD_VOLT = 2.4; // ⚠️ ノイズ警告のしきい値（ボルト値）
+        const CONFIG_NOISE_WARN_THRESHOLD_VOLT_HIGH = 2.4; // ⚠️ ノイズ警告のしきい値（ボルト値）
+        const CONFIG_NOISE_WARN_THRESHOLD_VOLT_LOW = 0.4; // ⚠️ ノイズ警告のしきい値（ボルト値）
 
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
@@ -185,7 +186,7 @@
                     
                     noiseDbEl.innerText = noiseVolt.toFixed(2) + " V";
                     
-                    if (noiseVolt > CONFIG_NOISE_WARN_THRESHOLD_VOLT) {
+                    if ((noiseVolt > CONFIG_NOISE_WARN_THRESHOLD_VOLT_HIGH) || (noiseVolt < CONFIG_NOISE_WARN_THRESHOLD_VOLT_LOW)) {
                         ch3CardEl.style.borderColor = "#f59e0b";
                         ch3CardEl.style.color = "#f59e0b";
                         noiseStatEl.innerText = "WARN";
