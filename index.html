@@ -87,11 +87,11 @@
     </div>
     <script>
         // ==========================================
-        // システム通信パラメータ設定（ここで一括管理）
+        // 🛠️ システム通信パラメータ設定（ここで一括管理）
         // ==========================================
-        const CONFIG_SUPABASE_INTERVAL_MS = 10000;    // 通常時のSupabase自動更新間隔（10秒）
-        const CONFIG_COMMAND_WAIT_MS = 4000;          // コマンド送信後の反映待ちウェイト（4秒）
-        const CONFIG_NOISE_WARN_THRESHOLD_VOLT = 2.4; // ノイズ警告のしきい値（ボルト値）
+        const CONFIG_SUPABASE_INTERVAL_MS = 10000;    // 🔄 通常時のSupabase自動更新間隔（10秒）
+        const CONFIG_COMMAND_WAIT_MS = 4000;          // ⏳ コマンド送信後の反映待ちウェイト（4秒）
+        const CONFIG_NOISE_WARN_THRESHOLD_VOLT = 2.4; // ⚠️ ノイズ警告のしきい値（ボルト値）
 
         const T_TEL = "esp32_01/industrial/telemetry", T_CMD = "esp32_01/industrial/command";
         let ledState = false, client = null, l_url = "", l_user = "", l_pass = "";
@@ -125,7 +125,7 @@
                 
                 if (!l_url || !l_user || !l_pass) throw new Error("データ不正: 設定不足");
                 
-                addDebugLog("Base64の解読に成功しました.");
+                addDebugLog("Base64の解読に成功しました。");
                 document.getElementById("dbgArgs").innerHTML = "【システム引数】認証保護により非表示（暗号トークン検証クリア）";
                 startMqttConnection();
             } catch(e) {
@@ -148,7 +148,7 @@
              client.on('connect', () => {
                 document.getElementById("syncDot").className = "dot online";
                 document.getElementById("syncText").innerText = "CONNECTED";
-                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保</span>");
+                addDebugLog("<span style='color:#10b981;font-weight:bold;'>→ EMQX接続成功！通信ラインを確保🟢</span>");
                 client.subscribe(T_TEL);
                 fetchSupabaseLogs(); 
                 setupSupabaseInterval(); 
@@ -212,13 +212,13 @@
                 } catch(e) { console.error(e); }
             });
         }
-
         async function fetchSupabaseLogs() {
             if (!sb_url || !sb_key) return;
             try {
                 const cleanUrl = sb_url.endsWith('/') ? sb_url.slice(0, -1) : sb_url;
                 
-                const res = await fetch(`${cleanUrl}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=1`, {
+                // 最新3件を取得（limit=3）
+                const res = await fetch(`${cleanUrl}/rest/v1/esp32_telemetry?select=*&order=created_at.desc&limit=3`, {
                     method: "GET",
                     headers: {
                         "apikey": sb_key,
@@ -239,24 +239,37 @@
                     return;
                 }
 
-                const log = dataArray[0];
-                const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-                
-                const dbNoiseVolt = Number(log.noise_mv);
+                // 3件のデータをループ処理してHTMLを生成
+                let html = "";
+                dataArray.forEach(log => {
+                    const jstTime = new Date(log.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+                    const dbNoiseVolt = Number(log.noise_mv);
 
-                container.innerHTML = `
-                    <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #3b82f6; line-height:1.5;">
-                        <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime} JST]</span><br>
-                        ID        : <span style="color:#ffffff; font-weight:bold;">${log.id}</span><br>
-                        MAC       : ${log.mac}<br>
-                        SW1_STAT  : <span style="color:#f59e0b; font-weight:bold;">${log.sw1_stat}</span> (EDGE:${log.sw1_edge})<br>
-                        SW2_STAT  : <span style="color:#06b6d4; font-weight:bold;">${log.sw2_stat}</span> (EDGE:${log.sw2_edge})<br>
-                        RSSI      : ${log.rssi_db} dBm<br>
-                        LINE NOISE: <span style="color:#10b981;">${dbNoiseVolt.toFixed(2)} V</span>
-                    </div>
-                `;
-                
-                addDebugLog("<span style='color:#38bdf8;'>→ Supabase本番ログテーブルの同期に成功</span>");
+                    // PUSH状態のスイッチのみを横並びで抽出
+                    let swStatusHtml = "";
+                    if (log.sw1_stat === "PUSH") {
+                        swStatusHtml += `SW1: <span style="color:#f59e0b; font-weight:bold;">PUSH</span> (EDGE:${log.sw1_edge}) &nbsp;&nbsp;`;
+                    }
+                    if (log.sw2_stat === "PUSH") {
+                        swStatusHtml += `SW2: <span style="color:#06b6d4; font-weight:bold;">PUSH</span> (EDGE:${log.sw2_edge}) &nbsp;&nbsp;`;
+                    }
+                    if (swStatusHtml === "") {
+                        swStatusHtml = `<span style="color:#6b7280;">SW: NO PUSH DETECTED</span>`;
+                    }
+
+                    // 【色彩工学修正】ID, MAC, RSSI のラベルをクールグレー(#94a3b8)に統一し、データ値を明瞭化
+                    html += `
+                        <div class="log-item" style="font-size:10px; color:#cbd5e1; background:#161b22; padding:8px; border-radius:4px; border-left:3px solid #3b82f6; line-height:1.6; margin-bottom: 6px;">
+                            <span class="log-time" style="color:#38bdf8; font-weight:bold;">[${jstTime}]</span><br>
+                            <span style="color:#94a3b8;">ID:</span> <span style="color:#ffffff; font-weight:bold;">${log.id}</span> | <span style="color:#94a3b8;">MAC:</span> <span style="color:#e2e8f0;">${log.mac}</span> | <span style="color:#94a3b8;">RSSI:</span> <span style="color:#e2e8f0;">${log.rssi_db} dBm</span><br>
+                            ${swStatusHtml}<br>
+                            ANALOG    : <span style="color:#10b981; font-weight:bold;">${dbNoiseVolt.toFixed(2)} V</span>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+                addDebugLog("<span style='color:#38bdf8;'>→ Supabase本番ログ（最新3件）の同期に成功！📊</span>");
 
             } catch(e) {
                 console.error("Supabase Fetch Error:", e);
@@ -276,18 +289,18 @@
                 if (supabaseTimerId) clearInterval(supabaseTimerId);
                 
                 const waitSec = (CONFIG_COMMAND_WAIT_MS / 1000).toFixed(0);
-                addDebugLog(`コマンド送信.10秒タイマーを破棄し、${waitSec}秒後に強制再同期をスケジューリング...`);
+                addDebugLog(`コマンド送信。10秒タイマーを破棄し、${waitSec}秒後に強制再同期をスケジューリング...⏳`);
                 
                 setTimeout(() => {
-                    addDebugLog("コマンド連動処理を実行.");
+                    addDebugLog("⚡ コマンド連動の強制フェッチを実行。");
                     fetchSupabaseLogs();
                     
-                    addDebugLog("自動更新タイマー（10秒間隔）を再起動.");
+                    addDebugLog("🔄 自動更新タイマー（10秒間隔）をリセット再起動しました。");
                     setupSupabaseInterval();
                 }, CONFIG_COMMAND_WAIT_MS);
                 
             } else {
-                alert("MQTTサーバーに接続されていません.");
+                alert("MQTTサーバーに接続されていません。");
             }
         }
     </script>
